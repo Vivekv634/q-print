@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 /print_job_file_storage
+./user_records.json
 *.pem
 
 # debug
