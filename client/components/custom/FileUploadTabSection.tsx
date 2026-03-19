@@ -13,13 +13,30 @@ import { useState, Activity, useEffect, SetStateAction, Dispatch } from "react";
 import FileDetailAccordion from "./FileDetailAccordion";
 import { Accordion } from "../ui/accordion";
 import { uid } from "uid";
-import { _database, getDBUserData, getFileStore } from "@/db/files.db";
+import {
+  _database,
+  emptyDBUserData,
+  emptyFileStore,
+  getDBUserData,
+  getFileStore,
+} from "@/db/files.db";
 import {
   fileAddFeature,
   FileDataUpdateHandler,
   fileRemoveFeature,
 } from "@/db/features/file.features";
 import { toast } from "sonner";
+import { setActivityFileStore, setActivityUserData } from "@/db/activity.db";
+
+const userTemplate: UserType = {
+  _id: uid(USER_ID_LENGTH),
+  estimated_time_of_print: 0,
+  name: "",
+  completed: false,
+  filedataArray: [],
+  position: 1,
+  timestamp: new Date().getTime(),
+};
 
 interface FileUploadSectionInterface {
   setTabValue: Dispatch<SetStateAction<"upload" | "activity">>;
@@ -28,15 +45,7 @@ interface FileUploadSectionInterface {
 export default function FileUploadSection({
   setTabValue,
 }: FileUploadSectionInterface) {
-  const [userData, setUserData] = useState<UserType>({
-    _id: uid(USER_ID_LENGTH),
-    estimated_time_of_print: 0,
-    name: "",
-    completed: false,
-    filedataArray: [],
-    position: 1,
-    timestamp: new Date().getTime(),
-  });
+  const [userData, setUserData] = useState<UserType>(userTemplate);
   const [files, setFiles] = useState<CustomFileBlob[]>([]);
   const [accordionDefaultValue, setAccordionDefaultValue] = useState<string[]>(
     [],
@@ -94,13 +103,24 @@ export default function FileUploadSection({
         toast.error("Facing some error, try again.");
         return;
       }
-      const body = (await response.json()) as {
+
+      const responseBody = (await response.json()) as {
         message: string;
         fileCount: number;
         userdata: UserType;
       };
-      console.log(body);
-      toast.success(`${body.fileCount} files upload received!`);
+
+      // append userdata store in activity database by their id as a key
+      setActivityUserData(userData);
+      setActivityFileStore(files, userData._id);
+
+      // remove all data from the file upload section
+      emptyDBUserData();
+      emptyFileStore();
+      setFiles([]);
+      setUserData(userTemplate);
+
+      toast.success(`${responseBody.fileCount} file(s) upload received!`);
       setTabValue("activity");
     } catch (error) {
       console.error(error);
