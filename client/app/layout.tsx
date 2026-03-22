@@ -1,22 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "next-themes";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
   title: "Q-PRINT",
+  description: "Simplifying print chaos into manageable queues.",
 };
 
 export default function RootLayout({
@@ -29,11 +17,8 @@ export default function RootLayout({
       lang="en"
       suppressContentEditableWarning={true}
       suppressHydrationWarning={true}
-      className={inter.variable}
     >
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased dark:bg-[#222222]`}
-      >
+      <body className={`antialiased dark:bg-[#222222]`}>
         <ThemeProvider
           defaultTheme="system"
           enableSystem={true}

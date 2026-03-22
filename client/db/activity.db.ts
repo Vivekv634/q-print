@@ -43,6 +43,11 @@ export async function getAllActivityFileStore() {
   return (await activityDatabase()).getAll(FILES_STORE);
 }
 
+// empty method for fileblobs
+export async function emptyActivityFileStore() {
+  (await activityDatabase()).clear(FILES_STORE);
+}
+
 // set method for userdata
 export async function setActivityUserData(input_data: UserType) {
   (await activityDatabase()).put(USER_STORE, input_data, input_data._id);
@@ -56,6 +61,11 @@ export async function getActivityUserData(user_id: string) {
 // getall method to fetch all userdata
 export async function getAllActivityUserData() {
   return (await activityDatabase()).getAll(USER_STORE);
+}
+
+// empty method for userdata
+export async function emptyActivityUserData() {
+  (await activityDatabase()).clear(USER_STORE);
 }
 
 // retrive all data

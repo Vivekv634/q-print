@@ -9,3 +9,6 @@ export const fileStoragePath = path.join(
   "data",
   FILE_STORAGE_NAME,
 );
+
+export const USER_ID_LENGTH = 11;
+export const FILE_ID_LENGTH = 7;

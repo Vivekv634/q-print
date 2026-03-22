@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs/promises";
 import { jsonFilePath } from "@/lib/constants";
-import { UserType } from "@/types/user.types";
+import { userSchema, UserType } from "@/types/user.types";
+import editJsonFile from "edit-json-file";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,11 +10,15 @@ export async function POST(request: NextRequest) {
 
     const userDataArray: UserType[] = [];
 
-    const file = await fs.readFile(jsonFilePath, "utf-8");
-    const jsonFileData: { [key: string]: UserType } = JSON.parse(file);
+    const file = editJsonFile(jsonFilePath);
 
     id_list.forEach((id) => {
-      userDataArray.push(jsonFileData[id]);
+      if (file.get(id)) {
+        const parsedUserData = userSchema.safeParse(file.get(id));
+        if (parsedUserData.success) {
+          userDataArray.push(parsedUserData.data);
+        }
+      }
     });
 
     return NextResponse.json({ data: userDataArray });

@@ -1,7 +1,8 @@
 "use client";
 
 import { space_grotesk } from "@/fonts";
-import { cn, USER_ID_LENGTH } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { USER_ID_LENGTH } from "@/lib/constants";
 import UserNameAlertDialog from "./UserNameAlertDialog";
 import { Label } from "../ui/label";
 import { Button } from "../ui/button";
@@ -16,6 +17,7 @@ import { uid } from "uid";
 import {
   _database,
   emptyDBUserData,
+  emptyFileSet,
   emptyFileStore,
   getDBUserData,
   getFileStore,
@@ -74,9 +76,15 @@ export default function FileUploadSection({
       return;
     }
     const formdata: FormData = new FormData();
-    const updatedUserData = { ...userData, timestamp: new Date().getTime() };
+    const dbUserData = (await getDBUserData()) as UserType;
+    const updatedUserData = {
+      ...userData,
+      ...dbUserData,
+      timestamp: new Date().getTime(),
+    };
     const parsedUpdatedUserData = userSchema.safeParse(updatedUserData);
     if (!parsedUpdatedUserData.success) {
+      console.log(parsedUpdatedUserData.error);
       toast.error("Getting error while parsing the userData data");
       return;
     }
@@ -94,7 +102,7 @@ export default function FileUploadSection({
       formdata.append("files", renamedFile);
     });
     try {
-      const response = await fetch(`/api/print_job_upload`, {
+      const response = await fetch(`/api/jobs/upload`, {
         method: "POST",
         body: formdata,
         credentials: "same-origin",
@@ -107,16 +115,17 @@ export default function FileUploadSection({
       const responseBody = (await response.json()) as {
         message: string;
         fileCount: number;
-        userdata: UserType;
+        userData: UserType;
       };
 
       // append userdata store in activity database by their id as a key
-      setActivityUserData(userData);
-      setActivityFileStore(files, userData._id);
+      setActivityUserData(responseBody.userData);
+      setActivityFileStore(files, responseBody.userData._id);
 
       // remove all data from the file upload section
       emptyDBUserData();
       emptyFileStore();
+      emptyFileSet();
       setFiles([]);
       setUserData(userTemplate);
 
@@ -203,7 +212,6 @@ export default function FileUploadSection({
         )}
       >
         <UserNameAlertDialog
-          setUserData={setUserData}
           formAction={handleFormSubmit}
           userData={userData}
           setOpenDialog={setOpenUsernameDialogState}

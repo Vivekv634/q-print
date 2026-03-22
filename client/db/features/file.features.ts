@@ -9,8 +9,8 @@ import {
   getFileStore,
 } from "../files.db";
 import { uid } from "uid";
-import { FILE_ID_LENGTH } from "@/lib/utils";
 import { FileDataType } from "@/types/filedata.types";
+import { FILE_ID_LENGTH } from "@/lib/constants";
 
 interface fileAddFeatureInterface {
   userData: UserType;

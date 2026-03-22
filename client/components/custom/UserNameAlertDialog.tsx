@@ -1,8 +1,7 @@
 "use client";
 import { space_grotesk } from "@/fonts";
 import { cn } from "@/lib/utils";
-import { UserType } from "@/types/user.types";
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,33 +17,39 @@ import {
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { toast } from "sonner";
+import { setDBUserData } from "@/db/files.db";
+import { UserType } from "@/types/user.types";
 
 export default function UserNameAlertDialog({
-  userData,
   openDialog,
   setOpenDialog,
-  setUserData,
+  userData,
   formAction,
 }: {
   formAction: () => void;
   userData: UserType;
   openDialog: boolean;
   setOpenDialog: Dispatch<SetStateAction<boolean>>;
-  setUserData: Dispatch<SetStateAction<UserType>>;
 }) {
+  const [name, setName] = useState<string>("");
+
   function handleFormAction() {
-    if (userData.name == "") {
+    if (name == "") {
       toast.warning("Enter a valid name!");
       setOpenDialog(true);
     } else {
+      setDBUserData({ ...userData, name });
       formAction();
       setOpenDialog(false);
     }
   }
+
   function dialogOpenChangeHandler(e: boolean) {
-    setUserData({ ...userData, name: "" });
+    setName("");
+    setDBUserData({ ...userData, name: "" });
     setOpenDialog(false);
   }
+
   return (
     <AlertDialog
       onOpenChange={(e) => dialogOpenChangeHandler(e)}
@@ -62,8 +67,8 @@ export default function UserNameAlertDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
-            value={userData.name}
-            onChange={(e) => setUserData({ ...userData, name: e.target.value })}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             type="text"
             required
             autoFocus={openDialog}

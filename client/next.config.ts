@@ -1,9 +1,11 @@
 import type { NextConfig } from "next";
+import ipJsonFile from "@/ip.json";
+
+const ip = ipJsonFile.ip_address;
 
 const nextConfig: NextConfig = {
-  /* config options here */
   devIndicators: false,
-  allowedDevOrigins: ["192.168.29.23", "http://192.168.29.23:*"],
+  allowedDevOrigins: [`${ip}`, `${ip}:3000`],
 };
 
 export default nextConfig;

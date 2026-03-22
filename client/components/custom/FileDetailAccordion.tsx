@@ -118,7 +118,7 @@ export default function FileDetailAccordion({
               readOnly
               type="number"
               className={cn(
-                "max-w-20 px-0 mx-auto text-center",
+                "max-w-14 px-0 mx-auto text-center",
                 buttonVariants({ variant: "outline" }),
               )}
             />
@@ -145,22 +145,6 @@ export default function FileDetailAccordion({
               <PlusIcon />
             </Button>
           </ButtonGroup>
-          {/* <Input
-            min={1}
-            max={20}
-            value={fileData.no_of_copies}
-            onChange={(e) =>
-              fileDataUpdateHandler({
-                file_id: file._id,
-                file_data: {
-                  ...fileData,
-                  no_of_copies: e.target.valueAsNumber || 1,
-                },
-              })
-            }
-            type="number"
-            className="max-w-20 border-b-2 border-x-0 border-t-0 rounded-none text-center"
-          /> */}
         </div>
 
         {/* print mode */}
