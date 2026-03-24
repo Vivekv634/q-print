@@ -1,7 +1,9 @@
 import netifaces
 import json
+from server.utils.constants import IP_FILE_PATH
+import logging
 
-ipJsonFilePath = "./client/ip.json"
+logger = logging.getLogger(__name__)
 
 
 def get_local_ip() -> str:
@@ -24,5 +26,7 @@ def get_local_ip() -> str:
 def set_ip_config():
     local_ip = get_local_ip()
 
-    with open(ipJsonFilePath, "w") as f:
+    with open(IP_FILE_PATH, "w") as f:
         json.dump({"ip_address": local_ip}, f)
+
+    logger.info("IP address configured and saved in ip.json file")
