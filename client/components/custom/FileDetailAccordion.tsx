@@ -17,7 +17,7 @@ import {
 } from "../ui/select";
 import { Label } from "../ui/label";
 import { Input } from "../ui/input";
-import { CustomFileBlob } from "@/app/page";
+import { CustomFileBlob } from "@/types/custom.types";
 import { UserType } from "@/types/user.types";
 import { useEffect, useState } from "react";
 import { FileDataType } from "@/types/filedata.types";

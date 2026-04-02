@@ -1,12 +1,35 @@
+import re
 import socket
+import json
 import netifaces
 import logging
 from zeroconf import Zeroconf, ServiceInfo
-from server.utils.constants import PORT
+from server.utils.constants import PORT, SHOP_CONFIG_PATH
 
 logger = logging.getLogger(__name__)
 
-MDNS_HOSTNAME = "qprint"
+QPRINT_SERVICE_TYPE = "_qprint._tcp.local."
+SETUP_SENTINEL = "__setup_required__"
+
+
+def generate_hostname(shop_name: str) -> str:
+    """Convert a shop name to a valid mDNS hostname slug with qprint- prefix."""
+    slug = re.sub(r"[^a-z0-9]+", "-", shop_name.lower()).strip("-")
+    slug = slug[:30]
+    return f"qprint-{slug}" if slug else "qprint-shop"
+
+
+def load_shop_config() -> dict:
+    try:
+        with open(SHOP_CONFIG_PATH) as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning(f"Failed to load shop_config.json: {e}. Using defaults.")
+        return {"shop_name": SETUP_SENTINEL, "mdns_hostname": SETUP_SENTINEL}
+
+
+def is_setup_required(shop_config: dict) -> bool:
+    return shop_config.get("shop_name", SETUP_SENTINEL) == SETUP_SENTINEL
 
 
 def get_local_ip() -> str:
@@ -25,17 +48,25 @@ def get_local_ip() -> str:
     return "127.0.0.1"
 
 
-def register_mdns() -> Zeroconf:
+def register_mdns(shop_config: dict) -> tuple[Zeroconf, str]:
     local_ip = get_local_ip()
+    hostname: str = shop_config["mdns_hostname"]
+    shop_name: str = shop_config["shop_name"]
+
     zc = Zeroconf()
     info = ServiceInfo(
-        "_http._tcp.local.",
-        "Q-Print._http._tcp.local.",
+        QPRINT_SERVICE_TYPE,
+        f"{hostname}.{QPRINT_SERVICE_TYPE}",
         addresses=[socket.inet_aton(local_ip)],
         port=PORT,
-        server=f"{MDNS_HOSTNAME}.local.",
-        properties={"path": "/"},
+        server=f"{hostname}.local.",
+        properties={
+            b"shop_name": shop_name.encode(),
+            b"path": b"/",
+        },
     )
     zc.register_service(info)
-    logger.info(f"mDNS registered: {MDNS_HOSTNAME}.local → {local_ip}:{PORT}")
-    return zc
+    logger.info(
+        f"mDNS registered: {hostname}.local → {local_ip}:{PORT} ('{shop_name}')"
+    )
+    return zc, hostname

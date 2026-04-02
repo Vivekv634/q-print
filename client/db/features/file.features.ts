@@ -1,4 +1,4 @@
-import { CustomFileBlob } from "@/app/page";
+import { CustomFileBlob } from "@/types/custom.types";
 import { Dispatch, SetStateAction } from "react";
 import { PDFDocument } from 'pdf-lib';
 import { UserType } from "@/types/user.types";

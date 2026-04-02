@@ -8,7 +8,7 @@ import { Label } from "../ui/label";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { userSchema, UserType } from "@/types/user.types";
-import { CustomFileBlob } from "@/app/page";
+import { CustomFileBlob } from "@/types/custom.types";
 import { FileDataType } from "@/types/filedata.types";
 import { useState, Activity, useEffect, SetStateAction, Dispatch, useMemo } from "react";
 import FileDetailAccordion from "./FileDetailAccordion";

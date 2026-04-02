@@ -1,4 +1,4 @@
-import { CustomFileBlob } from "@/app/page";
+import { CustomFileBlob } from "@/types/custom.types";
 import { UserType } from "@/types/user.types";
 import { openDB } from "idb";
 

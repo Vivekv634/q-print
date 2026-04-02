@@ -11,6 +11,10 @@ DATA_FOLDER_PATH: str = str(CLIENT_DIR / "data")
 
 PORT: int = 3000
 
+# shop identity & peer discovery
+SHOP_CONFIG_PATH: str = str(CLIENT_DIR / "shop_config.json")
+DISCOVERED_PEERS_PATH: str = str(CLIENT_DIR / "data" / "discovered_peers.json")
+
 # logging file path constant
 LOG_FILE_PATH: str = str(SERVER_DIR / "logs" / "app_logs.log")
 
