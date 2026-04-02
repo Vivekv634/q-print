@@ -8,8 +8,13 @@ import {
 export async function fetchFreshData(id_list: string[]): Promise<number> {
   const apiResponse = await fetch("/api/jobs/read_by_id", {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id_list }),
   });
+
+  if (!apiResponse.ok) {
+    return 0;
+  }
 
   const userDataArray = (await apiResponse.json()).data as UserType[];
 
@@ -20,13 +25,14 @@ export async function fetchFreshData(id_list: string[]): Promise<number> {
     }
   });
 
-  if (parsedUserDataArray.length == 0) {
-    emptyActivityFileStore();
-    emptyActivityUserData();
+  if (parsedUserDataArray.length === 0) {
+    await emptyActivityFileStore();
+    await emptyActivityUserData();
   } else {
-    Array.from(parsedUserDataArray).forEach((data) => {
-      if (data) setActivityUserData(data);
-    });
+    for (const data of parsedUserDataArray) {
+      await setActivityUserData(data);
+    }
   }
+
   return parsedUserDataArray.length;
 }

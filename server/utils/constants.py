@@ -1,25 +1,29 @@
 from pathlib import Path
-import os
 
 # base directory constants
-ROOT_DIR = Path(__file__).parent.parent.parent
-SERVER_DIR = os.path.join(ROOT_DIR, "server")
-CLIENT_DIR = os.path.join(ROOT_DIR, "client")
+ROOT_DIR: Path = Path(__file__).parent.parent.parent
+SERVER_DIR: Path = ROOT_DIR / "server"
+CLIENT_DIR: Path = ROOT_DIR / "client"
 
 # user_records.json file path constant
-USER_RECORD_FILE_PATH = os.path.join(CLIENT_DIR, "data", "user_records.json")
-DATA_FOLDER_PATH = os.path.join(CLIENT_DIR, "data")
+USER_RECORD_FILE_PATH: str = str(CLIENT_DIR / "data" / "user_records.json")
+DATA_FOLDER_PATH: str = str(CLIENT_DIR / "data")
 
-# ip.json file path constant
-IP_FILE_PATH = os.path.join(CLIENT_DIR, "ip.json")
-PORT = 3000
+PORT: int = 3000
+
+# logging file path constant
+LOG_FILE_PATH: str = str(SERVER_DIR / "logs" / "app_logs.log")
+
+# queue and storage paths
+PRINT_QUEUE_FILE_PATH: str = str(CLIENT_DIR / "data" / "print_queue.json")
+COST_FILE_PATH: str = str(CLIENT_DIR / "public" / "cost.json")
+FILE_STORAGE_PATH: str = str(CLIENT_DIR / "data" / "print_job_file_storage")
 
 
 def get_user_record_filepath() -> str:
     if Path(USER_RECORD_FILE_PATH).is_file():
         return USER_RECORD_FILE_PATH
-    else:
-        return ""
+    raise FileNotFoundError(f"user_records.json not found at: {USER_RECORD_FILE_PATH}")
 
 
 if __name__ == "__main__":

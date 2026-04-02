@@ -15,13 +15,12 @@ def find_processes_on_port(port: int) -> list[tuple[int, str]]:
                     break
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             continue
-
     return matches
 
 
 def kill_process(pid: int) -> bool:
     try:
-        proc = psutil.Process(pid)
+        proc: psutil.Process = psutil.Process(pid)
         proc.kill()
         proc.wait(timeout=5)
         return True
@@ -38,7 +37,7 @@ def free_port(port: int) -> None:
         return
 
     logger.info(f"Scanning for processes on port {port}...")
-    processes = find_processes_on_port(port)
+    processes: list[tuple[int, str]] = find_processes_on_port(port)
 
     if not processes:
         logger.warning(f"No process found listening on port {port}.")
@@ -46,7 +45,7 @@ def free_port(port: int) -> None:
 
     for pid, name in processes:
         logger.info(f"Found '{name}' (PID {pid})")
-        success = kill_process(pid)
+        success: bool = kill_process(pid)
         if success:
             logger.info(f"Killed '{name}' (PID {pid}) — port {port} is now free.")
         else:

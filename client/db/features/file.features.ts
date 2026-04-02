@@ -1,5 +1,6 @@
 import { CustomFileBlob } from "@/app/page";
 import { Dispatch, SetStateAction } from "react";
+import { PDFDocument } from 'pdf-lib';
 import { UserType } from "@/types/user.types";
 import {
   getFileSet,
@@ -45,12 +46,22 @@ export async function fileAddFeature({
 
   // run a loop for step 2
   const unique_input_files_with_id: CustomFileBlob[] = [];
-  Array.from(input_files).map((F) => {
+  const page_counts: Map<string, number> = new Map();
+
+  for (const F of Array.from(input_files)) {
     if (!file_set.has(F.name)) {
-      unique_input_files_with_id.push({ _id: uid(FILE_ID_LENGTH), file: F });
+      const fileId = uid(FILE_ID_LENGTH);
+      unique_input_files_with_id.push({ _id: fileId, file: F });
       file_set.add(F.name);
+      try {
+        const arrayBuffer = await F.arrayBuffer();
+        const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+        page_counts.set(fileId, pdfDoc.getPageCount());
+      } catch {
+        page_counts.set(fileId, 1);
+      }
     }
-  });
+  }
 
   // update the file_set and fileblob store
   await setFileSet(Array.from(file_set));
@@ -58,21 +69,18 @@ export async function fileAddFeature({
   setFiles([...files, ...unique_input_files_with_id]);
 
   // update userdata
-  const newFileDataArray: FileDataType[] = unique_input_files_with_id.map(
-    (F) => {
-      return {
-        _file_id: F._id,
-        background_graphics: false,
-        color_mode: "black_&_white",
-        file_name: F.file.name,
-        headers_footers: false,
-        layout: "portrait",
-        margins: "default",
-        no_of_copies: 1,
-        paper_size: "a4",
-      };
-    },
-  );
+  const newFileDataArray: FileDataType[] = unique_input_files_with_id.map((F) => ({
+    _file_id: F._id,
+    background_graphics: false,
+    color_mode: "black_&_white",
+    file_name: F.file.name,
+    headers_footers: false,
+    layout: "portrait",
+    margins: "default",
+    no_of_copies: 1,
+    page_count: page_counts.get(F._id) ?? 1,
+    paper_size: "a4",
+  }));
 
   const updatedUserData: UserType = {
     ...userData,
@@ -118,12 +126,12 @@ export async function fileRemoveFeature({
   // step 3
   const file_store: CustomFileBlob[] = await getFileStore();
   const newFileStore: CustomFileBlob[] = file_store.filter(
-    (F) => F.file.name != file_name,
+    (F) => F.file.name !== file_name,
   );
 
   // step 4
   const filteredFileDataArray: FileDataType[] = userData.filedataArray.filter(
-    (FD) => FD.file_name != file_name,
+    (FD) => FD.file_name !== file_name,
   );
   const updatedUserData: UserType = {
     ...userData,
@@ -134,9 +142,9 @@ export async function fileRemoveFeature({
   setUserData(updatedUserData);
   setFiles(newFileStore);
 
-  setFileStore(newFileStore);
-  setDBUserData(updatedUserData);
-  setFileSet(Array.from(file_set));
+  await setFileStore(newFileStore);
+  await setDBUserData(updatedUserData);
+  await setFileSet(Array.from(file_set));
 }
 
 interface FileDataUpdateHandlerInterface {

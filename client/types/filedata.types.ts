@@ -8,6 +8,7 @@ export interface FileInterface {
 export const filedataSchema = z.object({
   _file_id: z.string(),
   file_name: z.string(),
+  page_count: z.number().min(1),
   no_of_copies: z.number().min(1),
   color_mode: z.enum(["color", "black_&_white"]),
   layout: z.enum(["landscape", "portrait"]).default("portrait"),

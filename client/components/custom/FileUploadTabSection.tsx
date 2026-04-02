@@ -1,6 +1,6 @@
 "use client";
 
-import { space_grotesk } from "@/fonts";
+import { space_grotesk, jetbrains_mono } from "@/fonts";
 import { cn } from "@/lib/utils";
 import { USER_ID_LENGTH } from "@/lib/constants";
 import UserNameAlertDialog from "./UserNameAlertDialog";
@@ -10,7 +10,7 @@ import { Input } from "../ui/input";
 import { userSchema, UserType } from "@/types/user.types";
 import { CustomFileBlob } from "@/app/page";
 import { FileDataType } from "@/types/filedata.types";
-import { useState, Activity, useEffect, SetStateAction, Dispatch } from "react";
+import { useState, Activity, useEffect, SetStateAction, Dispatch, useMemo } from "react";
 import FileDetailAccordion from "./FileDetailAccordion";
 import { Accordion } from "../ui/accordion";
 import { uid } from "uid";
@@ -29,6 +29,7 @@ import {
 } from "@/db/features/file.features";
 import { toast } from "sonner";
 import { setActivityFileStore, setActivityUserData } from "@/db/activity.db";
+import { UploadIcon } from "lucide-react";
 
 const userTemplate: UserType = {
   _id: uid(USER_ID_LENGTH),
@@ -49,25 +50,34 @@ export default function FileUploadSection({
 }: FileUploadSectionInterface) {
   const [userData, setUserData] = useState<UserType>(userTemplate);
   const [files, setFiles] = useState<CustomFileBlob[]>([]);
-  const [accordionDefaultValue, setAccordionDefaultValue] = useState<string[]>(
-    [],
-  );
-  const [openUserNameDialogState, setOpenUsernameDialogState] =
-    useState<boolean>(false);
+  const [accordionDefaultValue, setAccordionDefaultValue] = useState<string[]>([]);
+  const [openUserNameDialogState, setOpenUsernameDialogState] = useState<boolean>(false);
+  const [costConfig, setCostConfig] = useState<{ color_per_page: number; bw_per_page: number } | null>(null);
 
   useEffect(() => {
     _database();
     getFileStore().then((res) => {
-      if (res) {
-        setFiles(res as CustomFileBlob[]);
-      }
+      if (res) setFiles(res as CustomFileBlob[]);
     });
     getDBUserData().then((res) => {
-      if (res) {
-        setUserData(res as UserType);
-      }
+      if (res) setUserData(res as UserType);
     });
   }, []);
+
+  useEffect(() => {
+    fetch("/cost.json")
+      .then((r) => r.json())
+      .then((data) => setCostConfig(data))
+      .catch(() => {});
+  }, []);
+
+  const totalCost = useMemo(() => {
+    if (!costConfig || userData.filedataArray.length === 0) return null;
+    return userData.filedataArray.reduce((sum, fd) => {
+      const rate = fd.color_mode === "color" ? costConfig.color_per_page : costConfig.bw_per_page;
+      return sum + (fd.page_count ?? 1) * fd.no_of_copies * rate;
+    }, 0);
+  }, [userData.filedataArray, costConfig]);
 
   async function handleFormSubmit() {
     if (!userData) return;
@@ -76,10 +86,10 @@ export default function FileUploadSection({
       return;
     }
     const formdata: FormData = new FormData();
-    const dbUserData = (await getDBUserData()) as UserType;
-    const updatedUserData = {
+    const dbUserData = (await getDBUserData()) as UserType | undefined;
+    const updatedUserData: UserType = {
       ...userData,
-      ...dbUserData,
+      ...(dbUserData ?? {}),
       timestamp: new Date().getTime(),
     };
     const parsedUpdatedUserData = userSchema.safeParse(updatedUserData);
@@ -90,11 +100,9 @@ export default function FileUploadSection({
     }
     setUserData(updatedUserData);
     formdata.append("userData", JSON.stringify(updatedUserData));
-    // Rename and append files with userData ID prefix
     files.forEach((fileObj) => {
       const originalFile = fileObj.file;
       const newFileName = `${userData._id}_${userData.name}_${fileObj._id}_${originalFile.name}`;
-      // Create a new File object with the new name
       const renamedFile = new File([originalFile], newFileName, {
         type: originalFile.type,
         lastModified: originalFile.lastModified,
@@ -111,24 +119,18 @@ export default function FileUploadSection({
         toast.error("Facing some error, try again.");
         return;
       }
-
       const responseBody = (await response.json()) as {
         message: string;
         fileCount: number;
         userData: UserType;
       };
-
-      // append userdata store in activity database by their id as a key
-      setActivityUserData(responseBody.userData);
-      setActivityFileStore(files, responseBody.userData._id);
-
-      // remove all data from the file upload section
-      emptyDBUserData();
-      emptyFileStore();
-      emptyFileSet();
+      await setActivityUserData(responseBody.userData);
+      await setActivityFileStore(files, responseBody.userData._id);
+      await emptyDBUserData();
+      await emptyFileStore();
+      await emptyFileSet();
       setFiles([]);
       setUserData(userTemplate);
-
       toast.success(`${responseBody.fileCount} file(s) upload received!`);
       setTabValue("activity");
     } catch (error) {
@@ -138,13 +140,7 @@ export default function FileUploadSection({
   }
 
   async function handle_add_file(input_files: FileList | null) {
-    await fileAddFeature({
-      input_files,
-      setFiles,
-      setUserData,
-      files,
-      userData,
-    });
+    await fileAddFeature({ input_files, setFiles, setUserData, files, userData });
   }
 
   async function bufferFileDeleteHandler(file_name: string) {
@@ -161,8 +157,7 @@ export default function FileUploadSection({
 
   function handleAccordionCollapsibleStates() {
     if (accordionDefaultValue.length == 0) {
-      const filename_mapper = files.map((f) => f.file.name);
-      setAccordionDefaultValue(filename_mapper);
+      setAccordionDefaultValue(files.map((f) => f.file.name));
     } else {
       setAccordionDefaultValue([]);
     }
@@ -179,18 +174,28 @@ export default function FileUploadSection({
   }
 
   return (
-    <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-3">
+    <form onSubmit={(e) => e.preventDefault()} className="flex flex-col gap-4">
+
+      {/* ── Upload drop zone — dot-grid paper aesthetic ── */}
       <div>
         <Label
+          htmlFor="file_input"
           className={cn(
-            "outline-dashed outline-[3px] cursor-pointer hover:bg-[#d3d3d3] rounded-2xl py-5 px-3 bg-[#e9e9e9] dark:bg-[#262626] font-bold",
+            "flex flex-col items-center justify-center gap-3",
+            "border-2 border-dashed border-foreground rounded-none",
+            "py-10 px-4 cursor-pointer dot-bg",
+            "transition-colors duration-150",
+            "hover:bg-primary/20",
             space_grotesk.className,
           )}
-          htmlFor="file_input"
         >
-          <p className="text-center w-full flex flex-col items-center">
-            Click here to upload files
-          </p>
+          <UploadIcon className="h-8 w-8" strokeWidth={2.5} />
+          <span className={cn("font-black text-sm tracking-[0.2em] uppercase")}>
+            Drop PDFs here
+          </span>
+          <span className={cn("nb-tag text-muted-foreground", jetbrains_mono.className)}>
+            Multiple files supported · PDF only
+          </span>
         </Label>
         <Input
           autoFocus
@@ -205,12 +210,29 @@ export default function FileUploadSection({
         />
       </div>
 
-      <div
-        className={cn(
-          "w-full tracking-wide flex justify-end gap-2",
-          space_grotesk.className,
-        )}
-      >
+      {/* ── Cost estimate — yellow left-bar accent ── */}
+      {totalCost !== null && files.length > 0 && (
+        <div
+          className={cn(
+            "flex justify-between items-center px-4 py-3",
+            "border-2 border-foreground border-l-[6px]",
+            "rounded-none bg-card",
+            space_grotesk.className,
+          )}
+          style={{
+            borderLeftColor: "#FFE500",
+            boxShadow: "var(--nb-shadow-xs)",
+          }}
+        >
+          <span className={cn("nb-tag text-muted-foreground", jetbrains_mono.className)}>
+            Estimated Cost
+          </span>
+          <span className="text-2xl font-black">₹{totalCost.toFixed(2)}</span>
+        </div>
+      )}
+
+      {/* ── Actions row ── */}
+      <div className={cn("w-full flex justify-end gap-2", space_grotesk.className)}>
         <UserNameAlertDialog
           formAction={handleFormSubmit}
           userData={userData}
@@ -219,27 +241,41 @@ export default function FileUploadSection({
         />
         <Button
           onClick={nameDialogOpenerHandler}
-          className="text-center w-fit cursor-pointer font-semibold text-foreground dark:text-background hover:bg-[#ffa310] active:bg-[#f09400] bg-[#ffad2a] border-2 border-black border-b-4 border-r-4 rounded-xl py-5 px-7"
+          className={cn(
+            "cursor-pointer font-black text-primary-foreground tracking-widest",
+            "bg-primary border-2 border-foreground rounded-none px-7 py-2.5 nb-press",
+          )}
+          style={{ boxShadow: "var(--nb-shadow)" }}
         >
-          Send Files
+          SEND FILES
         </Button>
       </div>
 
-      <hr className="w-full border-2" />
+      {/* Separator */}
+      <div className="nb-separator w-full" />
 
-      {/* file details display section */}
+      {/* ── File list section ── */}
       <section>
         <Activity mode={files.length == 0 ? "hidden" : "visible"}>
-          <div className="flex w-full justify-end mb-2">
+          <div className="flex w-full justify-between items-center mb-3">
+            {/* File count badge */}
+            <span
+              className={cn(
+                "nb-tag px-2 py-1 border-2 border-foreground bg-secondary text-foreground",
+                jetbrains_mono.className,
+              )}
+            >
+              {files.length} file{files.length !== 1 ? "s" : ""} queued
+            </span>
             <Button
               onClick={handleAccordionCollapsibleStates}
               className={cn(
-                "underline cursor-pointer bg-transparent border-none text-accent-foreground text-lg",
+                "bg-transparent border-none underline font-bold text-sm cursor-pointer",
                 space_grotesk.className,
               )}
               type="button"
             >
-              {accordionDefaultValue.length != userData.filedataArray.length
+              {accordionDefaultValue.length !== userData.filedataArray.length
                 ? "open all"
                 : "collapse all"}
             </Button>
@@ -248,29 +284,30 @@ export default function FileUploadSection({
         <Activity mode={files.length == 0 ? "hidden" : "visible"}>
           <Accordion
             type="multiple"
-            className="gap-2"
+            className="flex flex-col gap-3"
             value={accordionDefaultValue}
             onValueChange={setAccordionDefaultValue}
           >
-            {files.map((file_object, i) => {
-              return (
-                <FileDetailAccordion
-                  key={i}
-                  userData={userData}
-                  file={file_object}
-                  bufferFileDeleteHandler={bufferFileDeleteHandler}
-                  fileDataUpdateHandler={fileDataUpdateHandler}
-                />
-              );
-            })}
+            {files.map((file_object, i) => (
+              <FileDetailAccordion
+                key={i}
+                userData={userData}
+                file={file_object}
+                bufferFileDeleteHandler={bufferFileDeleteHandler}
+                fileDataUpdateHandler={fileDataUpdateHandler}
+              />
+            ))}
           </Accordion>
         </Activity>
         <Activity mode={files.length != 0 ? "hidden" : "visible"}>
-          <div
-            className={cn("text-center font-medium", space_grotesk.className)}
+          <p
+            className={cn(
+              "text-center nb-tag py-6 text-muted-foreground",
+              jetbrains_mono.className,
+            )}
           >
             No files uploaded yet.
-          </div>
+          </p>
         </Activity>
       </section>
     </form>

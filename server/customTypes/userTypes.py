@@ -4,18 +4,20 @@ from time import time
 
 class User:
     """
-    `User` data structure holds the data of the user such as name, unique_id, token_no
+    `User` data structure holds user metadata such as name, unique_id, and file details.
+    NOTE: This class is a legacy data structure. The active app uses the JSON-based
+    UserType defined in the Next.js client (client/types/user.types.ts).
     """
 
-    def __init__(self, name: str, unique_id: str):
-        self.name = name
+    def __init__(self, name: str, unique_id: str) -> None:
+        self.name: str = name
         self.token_no: int | None = None
-        self.timestamp: int = time() * 1000000
+        self.timestamp: int = int(time() * 1000)  # milliseconds, consistent with JS Date.getTime()
         self.unique_id: str = unique_id
         self.etp: int = 0
-        self.fileDetails: str[List] = []
+        self.fileDetails: List[str] = []
 
-    def printUser(self):
+    def printUser(self) -> None:
         print(
             self.name,
             self.token_no,

@@ -1,5 +1,5 @@
 "use client";
-import { space_grotesk } from "@/fonts";
+import { space_grotesk, jetbrains_mono } from "@/fonts";
 import { cn } from "@/lib/utils";
 import { Dispatch, SetStateAction, useState } from "react";
 import {
@@ -9,7 +9,6 @@ import {
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
-  AlertDialogHeader,
   AlertDialogOverlay,
   AlertDialogPortal,
   AlertDialogTitle,
@@ -44,9 +43,8 @@ export default function UserNameAlertDialog({
     }
   }
 
-  function dialogOpenChangeHandler(e: boolean) {
+  function dialogOpenChangeHandler(_e: boolean) {
     setName("");
-    setDBUserData({ ...userData, name: "" });
     setOpenDialog(false);
   }
 
@@ -57,42 +55,73 @@ export default function UserNameAlertDialog({
     >
       <AlertDialogPortal>
         <AlertDialogOverlay />
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className={cn(space_grotesk.className)}>
-              Write your name
+        <AlertDialogContent
+          className={cn(
+            "border-2 border-foreground rounded-none p-0 overflow-hidden",
+            space_grotesk.className,
+          )}
+          style={{ boxShadow: "var(--nb-shadow-lg)" }}
+        >
+          {/* Yellow accent header bar — full width strip */}
+          <div className="bg-primary border-b-2 border-foreground px-5 py-4">
+            <AlertDialogTitle className="font-black text-xl text-primary-foreground leading-tight">
+              Who&apos;s printing?
             </AlertDialogTitle>
-            <AlertDialogDescription className={cn(space_grotesk.className)}>
-              Your name is used to track your uploads.
+            <AlertDialogDescription
+              className={cn("nb-tag text-primary-foreground/70 mt-1", jetbrains_mono.className)}
+            >
+              Your name identifies your job in the queue.
             </AlertDialogDescription>
-          </AlertDialogHeader>
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            type="text"
-            required
-            autoFocus={openDialog}
-          />
-          <AlertDialogFooter className={cn(space_grotesk.className)}>
-            <AlertDialogAction
-              onClick={handleFormAction}
+          </div>
+
+          {/* Form body */}
+          <div className="px-5 py-4 flex flex-col gap-4">
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              type="text"
+              required
+              autoFocus={openDialog}
+              placeholder="Enter your name"
               className={cn(
-                "bg-[#5f66f2] hover:bg-[#4049e5] border-2 border-black border-b-4 border-r-4 text-lg py-4 px-2 cursor-pointer",
+                "rounded-none border-2 border-foreground font-bold text-base",
+                "focus-visible:ring-0 focus-visible:border-primary",
                 space_grotesk.className,
               )}
-              asChild
-            >
-              <Button>send files</Button>
-            </AlertDialogAction>
-            <AlertDialogCancel
-              className={cn(
-                "bg-transparent border-none hover:bg-transparent dark:text-white hover:text-black text-black dark:bg-transparent text-lg py-4 px-2 mt-0.5 cursor-pointer",
-              )}
-              asChild
-            >
-              <Button>cancel</Button>
-            </AlertDialogCancel>
-          </AlertDialogFooter>
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleFormAction();
+              }}
+            />
+
+            <AlertDialogFooter className="gap-2 flex-row sm:flex-row">
+              {/* Primary: yellow, shadow-collapse */}
+              <AlertDialogAction
+                onClick={handleFormAction}
+                className={cn(
+                  "flex-1 bg-primary text-primary-foreground border-2 border-foreground rounded-none",
+                  "font-black tracking-widest nb-press cursor-pointer",
+                  space_grotesk.className,
+                )}
+                style={{ boxShadow: "var(--nb-shadow-sm)" }}
+                asChild
+              >
+                <Button>SEND FILES</Button>
+              </AlertDialogAction>
+
+              {/* Cancel: outlined, shadow-collapse */}
+              <AlertDialogCancel
+                className={cn(
+                  "flex-1 bg-background text-foreground border-2 border-foreground rounded-none",
+                  "font-bold nb-press cursor-pointer mt-0",
+                  space_grotesk.className,
+                )}
+                style={{ boxShadow: "var(--nb-shadow-sm)" }}
+                asChild
+              >
+                <Button>Cancel</Button>
+              </AlertDialogCancel>
+            </AlertDialogFooter>
+          </div>
         </AlertDialogContent>
       </AlertDialogPortal>
     </AlertDialog>

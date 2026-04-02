@@ -4,114 +4,128 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ─── Q-Print Neo-Brutalism Design System ────────────────────────────── */
+/* Aesthetic: Industrial Print Ticket — hard edges, vivid accents,         */
+/* shadow collapse interactions, dot-grid paper references                 */
+
 :root {
-  --background: #faf9f6;
-  --foreground: #383838;
-  --card: #faf9f6;
-  --card-foreground: #141413;
-  --popover: #ffffff;
-  --popover-foreground: #28261b;
-  --primary: #c96442;
-  --primary-foreground: #ffffff;
-  --secondary: #e9e6dc;
-  --secondary-foreground: #535146;
-  --muted: #ede9de;
-  --muted-foreground: #83827d;
-  --accent: #e9e6dc;
-  --accent-foreground: #28261b;
-  --destructive: #141413;
-  --destructive-foreground: #ffffff;
-  --border: #dad9d4;
-  --input: #b4b2a7;
-  --ring: #c96442;
-  --chart-1: #b05730;
-  --chart-2: #9c87f5;
-  --chart-3: #ded8c4;
-  --chart-4: #dbd3f0;
-  --chart-5: #b4552d;
-  --sidebar: #f5f4ee;
-  --sidebar-foreground: #3d3d3a;
-  --sidebar-primary: #c96442;
-  --sidebar-primary-foreground: #fbfbfb;
-  --sidebar-accent: #e9e6dc;
-  --sidebar-accent-foreground: #343434;
-  --sidebar-border: #ebebeb;
-  --sidebar-ring: #b5b5b5;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --radius: 0.5rem;
-  --shadow-x: 0;
-  --shadow-y: 1px;
-  --shadow-blur: 3px;
-  --shadow-spread: 0px;
-  --shadow-opacity: 0.1;
-  --shadow-color: oklch(0 0 0);
+  /* Base */
+  --background: #F7F3E3;         /* warm parchment */
+  --foreground: #0A0A0A;
+  --card: #F7F3E3;
+  --card-foreground: #0A0A0A;
+  --popover: #F7F3E3;
+  --popover-foreground: #0A0A0A;
+
+  /* Accent palette — 4 vivid flat colors, each with semantic role */
+  --primary: #FFE500;            /* acid yellow — primary CTA */
+  --primary-foreground: #0A0A0A;
+  --secondary: #BEFF72;          /* acid lime — file/upload accents */
+  --secondary-foreground: #0A0A0A;
+  --accent: #00D4E8;             /* electric teal — activity/status */
+  --accent-foreground: #0A0A0A;
+  --destructive: #FF5A8A;        /* hot pink — delete */
+  --destructive-foreground: #0A0A0A;
+
+  /* System */
+  --muted: #EDE8D4;
+  --muted-foreground: #5A5650;
+  --border: #0A0A0A;
+  --input: #0A0A0A;
+  --ring: #FFE500;
+
+  /* Chart colors — same accent set */
+  --chart-1: #FFE500;
+  --chart-2: #BEFF72;
+  --chart-3: #00D4E8;
+  --chart-4: #FF5A8A;
+  --chart-5: #FF7A3D;
+
+  --sidebar: #F7F3E3;
+  --sidebar-foreground: #0A0A0A;
+  --sidebar-primary: #FFE500;
+  --sidebar-primary-foreground: #0A0A0A;
+  --sidebar-accent: #00D4E8;
+  --sidebar-accent-foreground: #0A0A0A;
+  --sidebar-border: #0A0A0A;
+  --sidebar-ring: #FFE500;
+
+  /* Typography */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
+
+  /* Near-sharp radius — almost square, just shy of brutal zero */
+  --radius: 0.25rem;
+
+  /* ── Neo-brutalism shadow tokens ──────────────────────────────────── */
+  /* Light mode: dark offset shadow */
+  --nb-shadow-xs:  2px 2px 0 0 #0A0A0A;
+  --nb-shadow-sm:  3px 3px 0 0 #0A0A0A;
+  --nb-shadow:     5px 5px 0 0 #0A0A0A;
+  --nb-shadow-lg:  7px 7px 0 0 #0A0A0A;
+
+  /* Tailwind compat shadows (keep soft for non-brutal elements) */
   --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
   --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
-  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
-  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
+  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 1px 2px -1px hsl(0 0% 0% / 0.1);
+  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 2px 4px -1px hsl(0 0% 0% / 0.1);
+  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 4px 6px -1px hsl(0 0% 0% / 0.1);
+  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
   --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 }
 
 .dark {
-  --background: #383838;
-  --foreground: #faf9f6;
-  --card: #383838;
-  --card-foreground: #faf9f6;
-  --popover: #30302e;
-  --popover-foreground: #e5e5e2;
-  --primary: #d97757;
-  --primary-foreground: #ffffff;
-  --secondary: #faf9f6;
-  --secondary-foreground: #30302e;
-  --muted: #1b1b19;
-  --muted-foreground: #b7b5a9;
-  --accent: #1a1915;
-  --accent-foreground: #f5f4ee;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
-  --border: #3e3e38;
-  --input: #52514a;
-  --ring: #d97757;
-  --chart-1: #b05730;
-  --chart-2: #9c87f5;
-  --chart-3: #1a1915;
-  --chart-4: #2f2b48;
-  --chart-5: #b4552d;
-  --sidebar: #1f1e1d;
-  --sidebar-foreground: #faf9f6;
-  --sidebar-primary: #343434;
-  --sidebar-primary-foreground: #fbfbfb;
-  --sidebar-accent: #0f0f0e;
-  --sidebar-accent-foreground: #faf9f6;
-  --sidebar-border: #ebebeb;
-  --sidebar-ring: #b5b5b5;
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  --radius: 0.5rem;
-  --shadow-x: 0;
-  --shadow-y: 1px;
-  --shadow-blur: 3px;
-  --shadow-spread: 0px;
-  --shadow-opacity: 0.1;
-  --shadow-color: oklch(0 0 0);
-  --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-  --shadow-sm: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 1px 2px -1px hsl(0 0% 0% / 0.10);
-  --shadow-md: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 2px 4px -1px hsl(0 0% 0% / 0.10);
-  --shadow-lg: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 4px 6px -1px hsl(0 0% 0% / 0.10);
-  --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
-  --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+  --background: #111110;
+  --foreground: #F7F3E3;
+  --card: #1A1A18;
+  --card-foreground: #F7F3E3;
+  --popover: #1A1A18;
+  --popover-foreground: #F7F3E3;
+
+  --primary: #FFE500;
+  --primary-foreground: #0A0A0A;
+  --secondary: #1E3A10;
+  --secondary-foreground: #BEFF72;
+  --accent: #003A40;
+  --accent-foreground: #00D4E8;
+  --destructive: #FF5A8A;
+  --destructive-foreground: #0A0A0A;
+
+  --muted: #1E1E1C;
+  --muted-foreground: #9A9690;
+  --border: #F7F3E3;
+  --input: #F7F3E3;
+  --ring: #FFE500;
+
+  --chart-1: #FFE500;
+  --chart-2: #BEFF72;
+  --chart-3: #00D4E8;
+  --chart-4: #FF5A8A;
+  --chart-5: #FF7A3D;
+
+  --sidebar: #111110;
+  --sidebar-foreground: #F7F3E3;
+  --sidebar-primary: #FFE500;
+  --sidebar-primary-foreground: #0A0A0A;
+  --sidebar-accent: #003A40;
+  --sidebar-accent-foreground: #00D4E8;
+  --sidebar-border: #F7F3E3;
+  --sidebar-ring: #FFE500;
+
+  /* Dark mode: light offset shadow */
+  --nb-shadow-xs:  2px 2px 0 0 #F7F3E3;
+  --nb-shadow-sm:  3px 3px 0 0 #F7F3E3;
+  --nb-shadow:     5px 5px 0 0 #F7F3E3;
+  --nb-shadow-lg:  7px 7px 0 0 #F7F3E3;
 }
 
+/* ─── Tailwind theme mapping ─────────────────────────────────────────── */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -163,4 +177,65 @@
   --shadow-lg: var(--shadow-lg);
   --shadow-xl: var(--shadow-xl);
   --shadow-2xl: var(--shadow-2xl);
+}
+
+/* ─── Neo-Brutalism Utility Classes ──────────────────────────────────── */
+
+/* Sharp card with offset shadow */
+.nb-card {
+  border: 2px solid var(--foreground);
+  border-radius: 0;
+  box-shadow: var(--nb-shadow);
+  background-color: var(--card);
+}
+
+/* Print-ticket card — thick left accent bar, offset shadow */
+/* Apply border-left-color separately with an inline style or accent class */
+.nb-ticket {
+  border: 2px solid var(--foreground);
+  border-left-width: 6px;
+  border-radius: 0;
+  box-shadow: var(--nb-shadow);
+  background-color: var(--card);
+}
+
+/* ── Shadow-collapse hover (THE signature portfolio interaction) ──────── */
+/* Element translates forward; shadow disappears — feels like a key press  */
+.nb-press {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.nb-press:hover:not(:disabled):not([data-disabled="true"]) {
+  transform: translate(5px, 5px);
+  box-shadow: 0 0 0 0 transparent !important;
+}
+.nb-press:active:not(:disabled) {
+  transform: translate(5px, 5px);
+  box-shadow: 0 0 0 0 transparent !important;
+}
+
+/* ── Dot-grid pattern — paper graph aesthetic for upload zone ──────────  */
+.dot-bg {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--foreground) 10%, transparent) 1.5px,
+    transparent 1.5px
+  );
+  background-size: 22px 22px;
+}
+
+/* ── Thick separator line ──────────────────────────────────────────────  */
+.nb-separator {
+  height: 2px;
+  background-color: var(--foreground);
+  border: none;
+  border-radius: 0;
+}
+
+/* ── Compact monospace label ───────────────────────────────────────────  */
+.nb-tag {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
 }

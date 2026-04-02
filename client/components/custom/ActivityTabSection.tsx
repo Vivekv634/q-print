@@ -10,9 +10,8 @@ import {
 import { useEffect, useState } from "react";
 import UserAcitvity from "./UserActivity";
 import { Button } from "../ui/button";
-import { RefreshCcwIcon, Space } from "lucide-react";
+import { RefreshCcwIcon } from "lucide-react";
 import { fetchFreshData } from "@/db/features/activity.features";
-import { Label } from "../ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { space_grotesk } from "@/fonts";
@@ -37,10 +36,7 @@ export default function ActivityTabSection() {
 
   async function refreshButtonHandler() {
     if (!userData) return;
-    const freshUserDataArrayLength = await fetchFreshData(
-      Object.keys(userData),
-    );
-    console.log(freshUserDataArrayLength);
+    const freshUserDataArrayLength = await fetchFreshData(Object.keys(userData));
     if (freshUserDataArrayLength == 0) {
       toast.error("User data not found in the server. Try uploading again!");
       setTimeout(() => {
@@ -50,34 +46,58 @@ export default function ActivityTabSection() {
   }
 
   if (!userData || !files) {
-    return;
+    return null;
   }
+
+  const jobCount = Object.keys(userData).length;
 
   return (
     <section>
-      <section className="flex justify-end mb-4">
-        <Button variant={"outline"} onClick={refreshButtonHandler}>
-          Refresh <RefreshCcwIcon />
+      {/* Header row */}
+      <div className="flex justify-between items-center mb-4">
+        {/* Job count badge */}
+        <span
+          className="nb-tag px-2 py-1 border-2 border-foreground bg-accent text-accent-foreground"
+        >
+          {jobCount} job{jobCount !== 1 ? "s" : ""} tracked
+        </span>
+
+        {/* Refresh — shadow-collapse */}
+        <Button
+          onClick={refreshButtonHandler}
+          className={cn(
+            "border-2 border-foreground rounded-none bg-background text-foreground",
+            "font-bold cursor-pointer nb-press gap-2",
+            space_grotesk.className,
+          )}
+          style={{ boxShadow: "var(--nb-shadow-sm)" }}
+        >
+          <RefreshCcwIcon className="h-4 w-4" />
+          Refresh
         </Button>
-      </section>
-      <section className="flex-col gap-4 flex">
-        {userData && files ? (
-          <>
-            {Object.values(userData).map((obj, i) => {
-              return <UserAcitvity userData={obj} key={i} />;
-            })}
-          </>
+      </div>
+
+      {/* Activity ticket list */}
+      <section className="flex flex-col gap-3">
+        {jobCount > 0 ? (
+          Object.values(userData).map((obj, i) => (
+            <UserAcitvity
+              userData={obj}
+              key={i}
+              onDelete={(id) =>
+                setUserData((prev) => {
+                  if (!prev) return prev;
+                  const updated = { ...prev };
+                  delete updated[id];
+                  return updated;
+                })
+              }
+            />
+          ))
         ) : (
-          <>
-            <Label
-              className={cn(
-                space_grotesk.className,
-                "flex justify-center items-center text-center w-full text-lg font-semibold",
-              )}
-            >
-              No user activity yet.
-            </Label>
-          </>
+          <p className="text-center nb-tag py-8 text-muted-foreground">
+            No jobs tracked yet. Upload a file to start.
+          </p>
         )}
       </section>
     </section>
