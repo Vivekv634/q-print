@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { jsonFilePath, USER_ID_LENGTH } from "@/lib/constants";
-import editJsonFile from "edit-json-file";
+import { USER_ID_LENGTH, PYTHON_API_URL } from "@/lib/constants";
 import z from "zod";
 
 const deleteSchema = z.object({
@@ -16,14 +15,17 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ message: "Invalid request body" }, { status: 400 });
     }
 
-    const { id } = parsed.data;
-    const file = editJsonFile(jsonFilePath, { autosave: true });
+    const res = await fetch(`${PYTHON_API_URL}/jobs/${parsed.data.id}`, {
+      method: "DELETE",
+    });
 
-    if (!file.get(id)) {
+    if (res.status === 404) {
       return NextResponse.json({ message: "record not found" }, { status: 404 });
     }
+    if (!res.ok) {
+      throw new Error(`Python API returned ${res.status}`);
+    }
 
-    file.unset(id);
     return NextResponse.json({ message: "deleted" }, { status: 200 });
   } catch (err) {
     console.error("Delete error:", err);

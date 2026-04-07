@@ -2,22 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import { mkdir, writeFile } from "fs/promises";
 import { userSchema, UserType } from "@/types/user.types";
-import { fileStoragePath, jsonFilePath } from "@/lib/constants";
-import editJsonFile from "edit-json-file";
+import { fileStoragePath, PYTHON_API_URL } from "@/lib/constants";
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB per file
 
-/*
- 1. Retrieve files and userData from formdata; return early if missing.
- 2. Parse and validate userData with Zod; return early on failure.
- 3. Validate each file: size limit, and _file_id must match a filedataArray entry.
- 4. Ensure storage directory exists, write files, then persist userData to JSON.
- 5. Return response with userData, message, and file count.
- */
-
 export async function POST(req: NextRequest) {
   try {
-    // step 1
     const formData = await req.formData();
     const files = formData.getAll("files") as File[];
     const userdata = formData.get("userData") as unknown;
@@ -26,7 +16,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "data not found!" }, { status: 404 });
     }
 
-    // step 2
     const userData: UserType = JSON.parse(userdata as string) as UserType;
     const parsedUserData = userSchema.safeParse(userData);
 
@@ -34,7 +23,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "can't parse user data" }, { status: 400 });
     }
 
-    // step 3: validate each uploaded file
     const fileIdSet = new Set(parsedUserData.data.filedataArray.map((fd) => fd._file_id));
 
     for (const file of files) {
@@ -44,7 +32,6 @@ export async function POST(req: NextRequest) {
           { status: 413 },
         );
       }
-
       const hasMatchingId = [...fileIdSet].some((id) => file.name.includes(id));
       if (!hasMatchingId) {
         return NextResponse.json(
@@ -54,28 +41,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // step 4: write files first, then persist record (prevents orphaned JSON entries)
+    // Write files to disk first — prevents orphaned queue entries if upload fails
     await mkdir(fileStoragePath, { recursive: true });
-
     for (const file of files) {
       const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      // path.basename strips any directory components — prevents path traversal
       const safeName = path.basename(file.name);
-      const file_path = path.join(fileStoragePath, safeName);
-      await writeFile(file_path, buffer);
+      await writeFile(path.join(fileStoragePath, safeName), Buffer.from(bytes));
     }
 
-    const jsonFile = editJsonFile(jsonFilePath, { autosave: true });
-    jsonFile.set(parsedUserData.data._id, parsedUserData.data);
+    // Register job in Python queue — serialized through write queue
+    const res = await fetch(`${PYTHON_API_URL}/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(parsedUserData.data),
+    });
 
-    // step 5
+    if (!res.ok) {
+      throw new Error(`Python API returned ${res.status}`);
+    }
+
     return NextResponse.json(
-      {
-        message: "Upload received",
-        fileCount: files.length,
-        userData: parsedUserData.data,
-      },
+      { message: "Upload received", fileCount: files.length, userData: parsedUserData.data },
       { status: 200 },
     );
   } catch (error) {
