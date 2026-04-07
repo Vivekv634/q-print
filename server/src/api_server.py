@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import threading
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -13,6 +14,8 @@ from server.utils.constants import PYTHON_API_PORT
 
 logger = logging.getLogger(__name__)
 write_queue: WriteQueue = WriteQueue()
+
+_shutdown_event: threading.Event = threading.Event()
 
 
 class JobRequest(BaseModel):
@@ -34,8 +37,18 @@ class IdListRequest(BaseModel):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.init_db()
+    orphans = await asyncio.to_thread(db.cleanup_orphaned_files)
+    if orphans:
+        logger.info(f"Startup: cleaned up {orphans} orphaned file(s)")
     await write_queue.start()
+
+    async def _watch_shutdown() -> None:
+        await asyncio.to_thread(_shutdown_event.wait)
+        await write_queue.stop()
+
+    watcher = asyncio.create_task(_watch_shutdown())
     yield
+    watcher.cancel()
     await write_queue.stop()
 
 
@@ -85,6 +98,18 @@ async def get_queue() -> list[dict[str, Any]]:
 @app.post("/jobs/batch")
 async def get_jobs_by_ids(body: IdListRequest) -> list[dict[str, Any]]:
     return await asyncio.to_thread(db.get_jobs_by_ids, body.id_list)
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.post("/shutdown", status_code=202)
+async def shutdown() -> dict[str, str]:
+    """Signal the server to stop after draining the write queue."""
+    _shutdown_event.set()
+    return {"status": "shutting down"}
 
 
 def start(port: int = PYTHON_API_PORT) -> None:

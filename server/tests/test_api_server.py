@@ -91,3 +91,15 @@ async def test_batch_get_empty_list(client):
     res = await client.post("/jobs/batch", json={"id_list": []})
     assert res.status_code == 200
     assert res.json() == []
+
+
+async def test_health_returns_ok(client):
+    res = await client.get("/health")
+    assert res.status_code == 200
+    assert res.json() == {"status": "ok"}
+
+
+async def test_shutdown_returns_202(client):
+    res = await client.post("/shutdown")
+    assert res.status_code == 202
+    assert res.json()["status"] == "shutting down"
