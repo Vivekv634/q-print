@@ -16,6 +16,7 @@ from server.utils.constants import (
 )
 from server.src.queue_manager import QueueManager
 from server.src.api_server import start as start_api_server
+from server.src.analytics_sync import run_sync
 from server.src.peer_discovery import PeerDiscovery
 
 from PySide6.QtWidgets import QApplication, QDialog
@@ -91,6 +92,7 @@ if __name__ == "__main__":
     api_thread.start()
 
     wait_for_api(PYTHON_API_PORT)
+    run_sync()
 
     client_thread = Thread(target=start_web_app, daemon=True)
     client_thread.start()

@@ -1,4 +1,7 @@
 {
   "shop_name": "__setup_required__",
-  "mdns_hostname": "__setup_required__"
+  "mdns_hostname": "__setup_required__",
+  "college_name": "__setup_required__",
+  "analytics_shop_id": "",
+  "analytics_api_key": ""
 }

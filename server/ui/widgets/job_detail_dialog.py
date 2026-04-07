@@ -196,7 +196,11 @@ class JobDetailDialog(QDialog):
             self.job, printer, self.file_storage_path
         )
         if success:
-            self.queue_manager.complete_job(self.job["_id"])
+            self.queue_manager.complete_job(
+                self.job["_id"],
+                revenue=self._calculate_total(),
+                event_type="completed",
+            )
             QMessageBox.information(self, "Done", "Job sent to printer and removed from queue.")
             self.accept()
         else:
@@ -213,5 +217,9 @@ class JobDetailDialog(QDialog):
         )
         if confirm != QMessageBox.StandardButton.Yes:
             return
-        self.queue_manager.complete_job(self.job["_id"])
+        self.queue_manager.complete_job(
+            self.job["_id"],
+            revenue=0.0,
+            event_type="dropped",
+        )
         self.accept()

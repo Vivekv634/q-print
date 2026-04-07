@@ -29,7 +29,10 @@ def load_shop_config() -> dict:
 
 
 def is_setup_required(shop_config: dict) -> bool:
-    return shop_config.get("shop_name", SETUP_SENTINEL) == SETUP_SENTINEL
+    return (
+        shop_config.get("shop_name", SETUP_SENTINEL) == SETUP_SENTINEL
+        or shop_config.get("college_name", SETUP_SENTINEL) == SETUP_SENTINEL
+    )
 
 
 def get_local_ip() -> str:
