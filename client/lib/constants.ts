@@ -16,3 +16,5 @@ export const FILE_ID_LENGTH = 7;
 export const printQueuePath = path.join(process.cwd(), "data", "print_queue.json");
 export const shopConfigPath = path.join(process.cwd(), "shop_config.json");
 export const discoveredPeersPath = path.join(process.cwd(), "data", "discovered_peers.json");
+
+export const PYTHON_API_URL = "http://127.0.0.1:8000";

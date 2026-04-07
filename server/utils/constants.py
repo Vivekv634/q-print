@@ -23,6 +23,12 @@ PRINT_QUEUE_FILE_PATH: str = str(CLIENT_DIR / "data" / "print_queue.json")
 COST_FILE_PATH: str = str(CLIENT_DIR / "public" / "cost.json")
 FILE_STORAGE_PATH: str = str(CLIENT_DIR / "data" / "print_job_file_storage")
 
+# Python API server
+PYTHON_API_PORT: int = 8000
+
+# SQLite database
+DB_PATH: str = str(CLIENT_DIR / "data" / "qprint.db")
+
 
 def get_user_record_filepath() -> str:
     if Path(USER_RECORD_FILE_PATH).is_file():
