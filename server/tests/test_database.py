@@ -98,3 +98,39 @@ def test_delete_job_files_removes_matching_file(db, tmp_path, monkeypatch):
     open(fake, "w").close()
     db.delete_job_files(make_job())
     assert not os.path.exists(fake)
+
+
+def test_cleanup_orphaned_files_deletes_unmatched(db, tmp_path, monkeypatch):
+    storage = str(tmp_path / "storage")
+    monkeypatch.setattr(db, "FILE_STORAGE_PATH", storage)
+    # File whose file_id has NO matching job in DB → should be deleted
+    orphan = os.path.join(storage, "abc12345678_Alice_orphan1_report.pdf")
+    open(orphan, "w").close()
+    deleted = db.cleanup_orphaned_files()
+    assert deleted == 1
+    assert not os.path.exists(orphan)
+
+
+def test_cleanup_orphaned_files_keeps_matched(db, tmp_path, monkeypatch):
+    storage = str(tmp_path / "storage")
+    monkeypatch.setattr(db, "FILE_STORAGE_PATH", storage)
+    db.insert_job(make_job())  # job has file_id "xyz1234"
+    # File whose file_id matches a job entry → should be kept
+    keeper = os.path.join(storage, "abc12345678_Alice_xyz1234_doc.pdf")
+    open(keeper, "w").close()
+    deleted = db.cleanup_orphaned_files()
+    assert deleted == 0
+    assert os.path.exists(keeper)
+
+
+def test_cleanup_orphaned_files_empty_storage(db, tmp_path, monkeypatch):
+    storage = str(tmp_path / "storage")
+    monkeypatch.setattr(db, "FILE_STORAGE_PATH", storage)
+    deleted = db.cleanup_orphaned_files()
+    assert deleted == 0
+
+
+def test_cleanup_orphaned_files_nonexistent_storage(db, monkeypatch):
+    monkeypatch.setattr(db, "FILE_STORAGE_PATH", "/nonexistent/path/xyz")
+    deleted = db.cleanup_orphaned_files()
+    assert deleted == 0

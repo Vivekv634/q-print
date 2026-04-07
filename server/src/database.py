@@ -110,6 +110,44 @@ def delete_job_files(job: dict[str, Any]) -> None:
             logger.error(f"Failed to delete files for {job.get('_id', '')}: {e}")
 
 
+def cleanup_orphaned_files() -> int:
+    """Delete files in FILE_STORAGE_PATH that have no matching job in the DB.
+
+    A file is considered orphaned if its file_id segment (3rd underscore-delimited
+    component) does not appear in any job's filedataArray.
+
+    Returns the count of deleted files.
+    """
+    if not os.path.exists(FILE_STORAGE_PATH):
+        return 0
+
+    jobs = get_all_jobs()
+    known_file_ids: set[str] = {
+        fd["_file_id"]
+        for job in jobs
+        for fd in job.get("filedataArray", [])
+        if isinstance(fd, dict) and fd.get("_file_id")
+    }
+
+    deleted = 0
+    try:
+        for filename in os.listdir(FILE_STORAGE_PATH):
+            parts = filename.split("_", 3)
+            if len(parts) < 4:
+                continue  # unexpected format — skip
+            file_id = parts[2]
+            if file_id not in known_file_ids:
+                try:
+                    os.remove(os.path.join(FILE_STORAGE_PATH, filename))
+                    logger.info(f"Cleaned up orphaned file: {filename}")
+                    deleted += 1
+                except OSError as e:
+                    logger.error(f"Failed to delete orphaned file {filename}: {e}")
+    except OSError as e:
+        logger.error(f"Failed to scan storage directory: {e}")
+    return deleted
+
+
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     d = dict(row)
     d["filedataArray"] = json.loads(d.pop("filedata_array"))
