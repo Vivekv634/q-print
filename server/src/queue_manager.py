@@ -47,26 +47,72 @@ class QueueManager:
             logger.info(f"Job queued: {user_data.get('_id')} ({user_data.get('name', '')})")
 
     def remove_job(self, user_id: str) -> None:
-        """User-initiated delete: remove from queue and delete uploaded files."""
+        """User-initiated delete: record as dropped, remove from queue and delete uploaded files."""
+        from datetime import datetime
         with self._lock:
             job = db.get_job(user_id)
             if job:
+                now = datetime.now()
+                db.insert_analytics_event(
+                    event_type="dropped",
+                    job_id=user_id,
+                    files_count=len(job.get("filedataArray", [])),
+                    pages_color=sum(
+                        fd.get("page_count", 0) * fd.get("no_of_copies", 1)
+                        for fd in job.get("filedataArray", [])
+                        if isinstance(fd, dict) and fd.get("color_mode") == "color"
+                    ),
+                    pages_bw=sum(
+                        fd.get("page_count", 0) * fd.get("no_of_copies", 1)
+                        for fd in job.get("filedataArray", [])
+                        if isinstance(fd, dict) and fd.get("color_mode") != "color"
+                    ),
+                    revenue=0.0,
+                    hour=now.hour,
+                    date=now.strftime("%Y-%m-%d"),
+                )
                 db.delete_job_files(job)
             db.delete_job(user_id)
             db.reassign_positions()
             self._mirror_queue()
             logger.info(f"Job removed: {user_id}")
 
-    def complete_job(self, user_id: str) -> None:
-        """Admin action (print done / cancel): delete files and remove from queue."""
+
+    def complete_job(
+        self,
+        user_id: str,
+        revenue: float = 0.0,
+        event_type: str = "completed",
+    ) -> None:
+        """Admin action (print done / cancel): record analytics, delete files, remove from queue."""
+        from datetime import datetime
         with self._lock:
             job = db.get_job(user_id)
             if job:
+                now = datetime.now()
+                db.insert_analytics_event(
+                    event_type=event_type,
+                    job_id=user_id,
+                    files_count=len(job.get("filedataArray", [])),
+                    pages_color=sum(
+                        fd.get("page_count", 0) * fd.get("no_of_copies", 1)
+                        for fd in job.get("filedataArray", [])
+                        if isinstance(fd, dict) and fd.get("color_mode") == "color"
+                    ),
+                    pages_bw=sum(
+                        fd.get("page_count", 0) * fd.get("no_of_copies", 1)
+                        for fd in job.get("filedataArray", [])
+                        if isinstance(fd, dict) and fd.get("color_mode") != "color"
+                    ),
+                    revenue=revenue,
+                    hour=now.hour,
+                    date=now.strftime("%Y-%m-%d"),
+                )
                 db.delete_job_files(job)
             db.delete_job(user_id)
             db.reassign_positions()
             self._mirror_queue()
-            logger.info(f"Job completed: {user_id}")
+            logger.info(f"Job completed ({event_type}): {user_id}")
 
     def get_queue(self) -> list[dict[str, Any]]:
         with self._lock:

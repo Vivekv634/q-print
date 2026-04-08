@@ -78,6 +78,13 @@ class SetupDialog(QDialog):
         self._name_input.textChanged.connect(self._on_name_changed)
         root.addWidget(self._name_input)
 
+        # College / University name
+        root.addWidget(QLabel("College / University Name"))
+        self._college_input = QLineEdit()
+        self._college_input.setPlaceholderText("e.g.  University of Delhi,  IIT Bombay")
+        self._college_input.textChanged.connect(self._validate)
+        root.addWidget(self._college_input)
+
         # Hostname
         root.addWidget(QLabel("mDNS Hostname  (auto-generated — you can change it)"))
         self._host_input = QLineEdit()
@@ -126,10 +133,16 @@ class SetupDialog(QDialog):
 
     def _validate(self) -> None:
         name = self._name_input.text().strip()
+        college = self._college_input.text().strip()
         host = self._host_input.text().strip()
 
         if not name:
             self._msg_label.setText("Shop name cannot be empty.")
+            self._save_btn.setEnabled(False)
+            return
+
+        if not college:
+            self._msg_label.setText("College / University name cannot be empty.")
             self._save_btn.setEnabled(False)
             return
 
@@ -146,11 +159,22 @@ class SetupDialog(QDialog):
 
     def _save(self) -> None:
         name = self._name_input.text().strip()
+        college = self._college_input.text().strip()
         host = self._host_input.text().strip()
 
         try:
             with open(self._config_path, "w") as f:
-                json.dump({"shop_name": name, "mdns_hostname": host}, f, indent=2)
+                json.dump(
+                    {
+                        "shop_name": name,
+                        "mdns_hostname": host,
+                        "college_name": college,
+                        "analytics_shop_id": "",
+                        "analytics_api_key": "",
+                    },
+                    f,
+                    indent=2,
+                )
             logger.info(f"Shop configured: '{name}' as {host}.local")
             self.accept()
         except Exception as e:

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 # base directory constants
@@ -28,6 +29,9 @@ PYTHON_API_PORT: int = 8000
 
 # SQLite database
 DB_PATH: str = str(CLIENT_DIR / "data" / "qprint.db")
+
+# Analytics cloud API (override via ANALYTICS_CLOUD_URL env var if self-hosting)
+ANALYTICS_CLOUD_URL: str = os.getenv("ANALYTICS_CLOUD_URL", "https://qprint-analytics.vercel.app")
 
 
 def get_user_record_filepath() -> str:

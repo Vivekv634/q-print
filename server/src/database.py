@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sqlite3
+import time
 from typing import Any
 
 from server.utils.constants import DB_PATH, FILE_STORAGE_PATH
@@ -27,6 +28,27 @@ def init_db() -> None:
                 filedata_array TEXT NOT NULL,
                 estimated_time_of_print INTEGER DEFAULT 0,
                 completed INTEGER DEFAULT 0
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS analytics_events (
+                id          INTEGER PRIMARY KEY,
+                event_type  TEXT    NOT NULL,
+                job_id      TEXT    NOT NULL,
+                files_count INTEGER NOT NULL DEFAULT 0,
+                pages_color INTEGER NOT NULL DEFAULT 0,
+                pages_bw    INTEGER NOT NULL DEFAULT 0,
+                revenue     REAL    NOT NULL DEFAULT 0.0,
+                hour        INTEGER NOT NULL DEFAULT 0,
+                date        TEXT    NOT NULL,
+                timestamp   INTEGER NOT NULL
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sync_log (
+                date      TEXT PRIMARY KEY,
+                status    TEXT    NOT NULL DEFAULT 'pending',
+                synced_at INTEGER
             )
         """)
         conn.commit()
@@ -146,6 +168,91 @@ def cleanup_orphaned_files() -> int:
     except OSError as e:
         logger.error(f"Failed to scan storage directory: {e}")
     return deleted
+
+
+def insert_analytics_event(
+    event_type: str,
+    job_id: str,
+    files_count: int,
+    pages_color: int,
+    pages_bw: int,
+    revenue: float,
+    hour: int,
+    date: str,
+) -> None:
+    if not (0 <= hour <= 23):
+        raise ValueError(f"hour must be 0–23, got {hour}")
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO analytics_events
+              (event_type, job_id, files_count, pages_color, pages_bw, revenue, hour, date, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (event_type, job_id, files_count, pages_color, pages_bw, revenue, hour, date, int(time.time())),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO sync_log (date, status) VALUES (?, 'pending')",
+            (date,),
+        )
+        conn.commit()
+
+
+def get_pending_sync_dates() -> list[str]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT date FROM sync_log WHERE status = 'pending' ORDER BY date ASC"
+        ).fetchall()
+        return [row["date"] for row in rows]
+
+
+def aggregate_day_analytics(date: str) -> dict[str, Any]:
+    with _connect() as conn:
+        row = conn.execute(
+            """
+            SELECT
+                COUNT(CASE WHEN event_type = 'completed' THEN 1 END) AS jobs_completed,
+                COUNT(CASE WHEN event_type = 'errored'   THEN 1 END) AS jobs_errored,
+                COUNT(CASE WHEN event_type = 'dropped'   THEN 1 END) AS jobs_dropped,
+                SUM(files_count) AS files_printed,
+                SUM(pages_color) AS pages_color,
+                SUM(pages_bw)    AS pages_bw,
+                SUM(revenue)     AS revenue
+            FROM analytics_events WHERE date = ?
+            """,
+            (date,),
+        ).fetchone()
+        hour_rows = conn.execute(
+            "SELECT hour, COUNT(*) AS cnt FROM analytics_events WHERE date = ? GROUP BY hour",
+            (date,),
+        ).fetchall()
+
+    peak_hours = [0] * 24
+    for hr in hour_rows:
+        peak_hours[hr["hour"]] = hr["cnt"]
+
+    return {
+        "date": date,
+        "jobs_completed": row["jobs_completed"] or 0,
+        "jobs_errored":   row["jobs_errored"]   or 0,
+        "jobs_dropped":   row["jobs_dropped"]   or 0,
+        "files_printed":  row["files_printed"]  or 0,
+        "pages_color":    row["pages_color"]    or 0,
+        "pages_bw":       row["pages_bw"]       or 0,
+        "revenue":        row["revenue"]        or 0.0,
+        "peak_hours":     peak_hours,
+    }
+
+
+def mark_dates_synced(dates: list[str]) -> None:
+    if not dates:
+        return
+    with _connect() as conn:
+        conn.executemany(
+            "UPDATE sync_log SET status = 'synced', synced_at = ? WHERE date = ?",
+            [(int(time.time()), d) for d in dates],
+        )
+        conn.commit()
 
 
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:

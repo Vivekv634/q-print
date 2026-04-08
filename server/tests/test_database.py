@@ -134,3 +134,110 @@ def test_cleanup_orphaned_files_nonexistent_storage(db, monkeypatch):
     monkeypatch.setattr(db, "FILE_STORAGE_PATH", "/nonexistent/path/xyz")
     deleted = db.cleanup_orphaned_files()
     assert deleted == 0
+
+
+# ── analytics_events + sync_log tests ─────────────────────────────────────────
+
+def test_insert_analytics_event_creates_row(db):
+    db.insert_analytics_event(
+        event_type="completed",
+        job_id="abc12345678",
+        files_count=2,
+        pages_color=4,
+        pages_bw=6,
+        revenue=25.0,
+        hour=14,
+        date="2026-04-07",
+    )
+    conn = db._connect()
+    row = conn.execute("SELECT * FROM analytics_events WHERE job_id = 'abc12345678'").fetchone()
+    conn.close()
+    assert row is not None
+    assert row["event_type"] == "completed"
+    assert row["hour"] == 14
+
+
+def test_insert_analytics_event_creates_pending_sync_log(db):
+    db.insert_analytics_event(
+        event_type="completed", job_id="abc12345678",
+        files_count=1, pages_color=0, pages_bw=2,
+        revenue=3.0, hour=10, date="2026-04-07",
+    )
+    dates = db.get_pending_sync_dates()
+    assert "2026-04-07" in dates
+
+
+def test_insert_analytics_event_does_not_duplicate_sync_log(db):
+    for _ in range(3):
+        db.insert_analytics_event(
+            event_type="completed", job_id=f"id{_}12345678",
+            files_count=1, pages_color=0, pages_bw=1,
+            revenue=1.5, hour=9, date="2026-04-07",
+        )
+    assert db.get_pending_sync_dates().count("2026-04-07") == 1
+
+
+def test_get_pending_sync_dates_excludes_synced(db):
+    db.insert_analytics_event(
+        event_type="completed", job_id="aaa12345678",
+        files_count=1, pages_color=0, pages_bw=1,
+        revenue=1.5, hour=9, date="2026-04-06",
+    )
+    db.insert_analytics_event(
+        event_type="completed", job_id="bbb12345678",
+        files_count=1, pages_color=0, pages_bw=1,
+        revenue=1.5, hour=10, date="2026-04-07",
+    )
+    db.mark_dates_synced(["2026-04-06"])
+    pending = db.get_pending_sync_dates()
+    assert "2026-04-06" not in pending
+    assert "2026-04-07" in pending
+
+
+def test_aggregate_day_analytics_counts_and_sums(db):
+    db.insert_analytics_event("completed", "a12345678x", 2, 4, 6, 25.0, 14, "2026-04-07")
+    db.insert_analytics_event("completed", "b12345678x", 1, 0, 2,  3.0, 15, "2026-04-07")
+    db.insert_analytics_event("errored",   "c12345678x", 1, 0, 0,  0.0, 16, "2026-04-07")
+    db.insert_analytics_event("dropped",   "d12345678x", 1, 0, 0,  0.0, 17, "2026-04-07")
+    agg = db.aggregate_day_analytics("2026-04-07")
+    assert agg["jobs_completed"] == 2
+    assert agg["jobs_errored"] == 1
+    assert agg["jobs_dropped"] == 1
+    assert agg["files_printed"] == 5
+    assert agg["pages_color"] == 4
+    assert agg["pages_bw"] == 8
+    assert abs(agg["revenue"] - 28.0) < 0.001
+    assert len(agg["peak_hours"]) == 24
+    assert agg["peak_hours"][14] == 1
+    assert agg["peak_hours"][15] == 1
+    assert agg["peak_hours"][0] == 0
+
+
+def test_mark_dates_synced(db):
+    db.insert_analytics_event("completed", "a12345678x", 1, 0, 1, 1.5, 10, "2026-04-07")
+    db.mark_dates_synced(["2026-04-07"])
+    assert db.get_pending_sync_dates() == []
+
+
+def test_aggregate_day_analytics_empty_date_returns_zeros(db):
+    agg = db.aggregate_day_analytics("2099-01-01")
+    assert agg["jobs_completed"] == 0
+    assert agg["jobs_errored"] == 0
+    assert agg["jobs_dropped"] == 0
+    assert agg["files_printed"] == 0
+    assert agg["pages_color"] == 0
+    assert agg["pages_bw"] == 0
+    assert agg["revenue"] == 0.0
+    assert agg["peak_hours"] == [0] * 24
+
+
+def test_mark_dates_synced_empty_list_is_noop(db):
+    db.insert_analytics_event("completed", "a12345678x", 1, 0, 1, 1.5, 10, "2026-04-07")
+    db.mark_dates_synced([])  # should not raise
+    assert "2026-04-07" in db.get_pending_sync_dates()  # still pending
+
+
+def test_insert_analytics_event_rejects_invalid_hour(db):
+    import pytest
+    with pytest.raises(ValueError, match="hour must be 0–23"):
+        db.insert_analytics_event("completed", "abc12345678", 1, 0, 1, 1.5, 25, "2026-04-07")
