@@ -82,7 +82,7 @@ server\.venv\Scripts\pip install pywin32
 ### 1. Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/Vivekv634/q-print.git
 cd q-print
 ```
 
