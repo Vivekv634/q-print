@@ -1,11 +1,13 @@
+import json
 import logging
 
 from PySide6.QtWidgets import (
     QMainWindow,
     QSplitter,
     QStatusBar,
+    QLabel,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction
 
 from server.src.queue_manager import QueueManager
@@ -14,13 +16,28 @@ from server.utils.constants import (
     PRINT_QUEUE_FILE_PATH,
     COST_FILE_PATH,
     FILE_STORAGE_PATH,
+    DISCOVERED_PEERS_PATH,
+    SHOP_CONFIG_PATH,
+    ASSETS_PATH,
+    PORT,
 )
+from server.utils.wifi_utils import get_ssid
+from server.ui import keybindings
 from server.ui.widgets.queue_panel import QueuePanel
 from server.ui.widgets.printer_panel import PrinterPanel
 from server.ui.widgets.job_detail_dialog import JobDetailDialog
 from server.ui.widgets.cost_settings_dialog import CostSettingsDialog
+from server.ui.widgets.qr_dialog import QRDialog
 
 logger = logging.getLogger(__name__)
+
+
+def _load_hostname() -> str:
+    try:
+        with open(SHOP_CONFIG_PATH, encoding="utf-8") as f:
+            return json.load(f).get("mdns_hostname", "qprint-shop")
+    except Exception:
+        return "qprint-shop"
 
 
 class AdminWindow(QMainWindow):
@@ -29,7 +46,7 @@ class AdminWindow(QMainWindow):
         self.queue_manager: QueueManager = queue_manager
         self.printer_manager: PrinterManager = PrinterManager()
         self.setWindowTitle("Q-Print Admin")
-        self.setMinimumSize(1000, 600)
+        self.setMinimumSize(1280, 720)
         self._build_menu()
         self._build_central()
         self._build_status_bar()
@@ -37,16 +54,38 @@ class AdminWindow(QMainWindow):
     def _build_menu(self) -> None:
         menu_bar = self.menuBar()
 
+        # File
         file_menu = menu_bar.addMenu("File")
         quit_action = QAction("Quit", self)
-        quit_action.setShortcut("Ctrl+Q")
+        quit_action.setShortcut(keybindings.QUIT)
         quit_action.triggered.connect(self.close)
         file_menu.addAction(quit_action)
 
+        # Settings (unchanged)
         settings_menu = menu_bar.addMenu("Settings")
         cost_action = QAction("Edit Print Cost…", self)
+        cost_action.setShortcut(keybindings.EDIT_COST)
         cost_action.triggered.connect(self._open_cost_settings)
         settings_menu.addAction(cost_action)
+
+        # Tools (new)
+        tools_menu = menu_bar.addMenu("Tools")
+        refresh_action = QAction("Refresh Queue", self)
+        refresh_action.setShortcut(keybindings.REFRESH_QUEUE)
+        refresh_action.triggered.connect(self._refresh_queue)
+        tools_menu.addAction(refresh_action)
+
+        # Network (new)
+        network_menu = menu_bar.addMenu("Network")
+        qr_action = QAction("Show QR Code…", self)
+        qr_action.setShortcut(keybindings.SHOW_QR_CODE)
+        qr_action.triggered.connect(self._open_qr_dialog)
+        network_menu.addAction(qr_action)
+
+        nearby_action = QAction("Find Shops Nearby…", self)
+        nearby_action.setShortcut(keybindings.FIND_NEARBY_SHOPS)
+        nearby_action.triggered.connect(self._open_nearby_shops)
+        network_menu.addAction(nearby_action)
 
     def _build_central(self) -> None:
         splitter: QSplitter = QSplitter(Qt.Orientation.Horizontal)
@@ -62,7 +101,7 @@ class AdminWindow(QMainWindow):
 
         splitter.addWidget(self.queue_panel)
         splitter.addWidget(self.printer_panel)
-        splitter.setSizes([650, 350])
+        splitter.setSizes([800, 480])
 
         self.setCentralWidget(splitter)
 
@@ -70,6 +109,39 @@ class AdminWindow(QMainWindow):
         self.status_bar: QStatusBar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Q-Print Admin ready.")
+
+        self._wifi_label: QLabel = QLabel()
+        self._wifi_label.setStyleSheet("padding: 0 8px; color: #ccc;")
+        self.status_bar.addPermanentWidget(self._wifi_label)
+        self._update_wifi_label()
+
+        self._wifi_timer: QTimer = QTimer(self)
+        self._wifi_timer.setInterval(30_000)
+        self._wifi_timer.timeout.connect(self._update_wifi_label)
+        self._wifi_timer.start()
+
+    def _update_wifi_label(self) -> None:
+        self._wifi_label.setText(f"📶 {get_ssid()}")
+
+    # ── Menu handlers ──────────────────────────────────────────────────────────
+
+    def _refresh_queue(self) -> None:
+        self.queue_panel.refresh()
+
+    def _open_qr_dialog(self) -> None:
+        hostname = _load_hostname()
+        dialog = QRDialog(
+            hostname=hostname,
+            port=PORT,
+            assets_path=ASSETS_PATH,
+            parent=self,
+        )
+        dialog.exec()
+
+    def _open_nearby_shops(self) -> None:
+        from server.ui.widgets.nearby_shops_dialog import NearbyShopsDialog
+        dialog = NearbyShopsDialog(peers_file_path=DISCOVERED_PEERS_PATH, parent=self)
+        dialog.exec()
 
     def _open_job_detail(self, job: dict) -> None:
         dialog: JobDetailDialog = JobDetailDialog(

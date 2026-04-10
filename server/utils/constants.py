@@ -4,6 +4,7 @@ from pathlib import Path
 # base directory constants
 ROOT_DIR: Path = Path(__file__).parent.parent.parent
 SERVER_DIR: Path = ROOT_DIR / "server"
+ASSETS_PATH: str = str(SERVER_DIR / "assets")
 CLIENT_DIR: Path = ROOT_DIR / "client"
 
 # user_records.json file path constant
