@@ -92,8 +92,10 @@ class AdminWindow(QMainWindow):
 
         self.queue_panel: QueuePanel = QueuePanel(
             queue_manager=self.queue_manager,
+            printer_manager=self.printer_manager,
             queue_file_path=PRINT_QUEUE_FILE_PATH,
             cost_file_path=COST_FILE_PATH,
+            file_storage_path=FILE_STORAGE_PATH,
         )
         self.queue_panel.job_selected.connect(self._open_job_detail)
 
