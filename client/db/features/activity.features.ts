@@ -5,7 +5,12 @@ import {
   setActivityUserData,
 } from "../activity.db";
 
-export async function fetchFreshData(id_list: string[]): Promise<number> {
+export interface FetchFreshDataResult {
+  count: number;
+  rejectedIds: string[];
+}
+
+export async function fetchFreshData(id_list: string[]): Promise<FetchFreshDataResult> {
   const apiResponse = await fetch("/api/jobs/read_by_id", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -13,10 +18,12 @@ export async function fetchFreshData(id_list: string[]): Promise<number> {
   });
 
   if (!apiResponse.ok) {
-    return 0;
+    return { count: 0, rejectedIds: [] };
   }
 
-  const userDataArray = (await apiResponse.json()).data as UserType[];
+  const responseData = await apiResponse.json();
+  const userDataArray = (responseData.data ?? []) as UserType[];
+  const rejectedIds = (responseData.rejected_ids ?? []) as string[];
 
   const parsedUserDataArray: UserType[] = [];
   userDataArray.forEach((data) => {
@@ -34,5 +41,5 @@ export async function fetchFreshData(id_list: string[]): Promise<number> {
     }
   }
 
-  return parsedUserDataArray.length;
+  return { count: parsedUserDataArray.length, rejectedIds };
 }

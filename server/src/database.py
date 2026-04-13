@@ -51,6 +51,12 @@ def init_db() -> None:
                 synced_at INTEGER
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS rejected_notifications (
+                job_id     TEXT    PRIMARY KEY,
+                created_at INTEGER NOT NULL
+            )
+        """)
         conn.commit()
 
 
@@ -251,6 +257,39 @@ def mark_dates_synced(dates: list[str]) -> None:
         conn.executemany(
             "UPDATE sync_log SET status = 'synced', synced_at = ? WHERE date = ?",
             [(int(time.time()), d) for d in dates],
+        )
+        conn.commit()
+
+
+def insert_rejection(job_id: str) -> None:
+    with _connect() as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO rejected_notifications (job_id, created_at) VALUES (?, ?)",
+            (job_id, int(time.time())),
+        )
+        conn.commit()
+
+
+def get_rejections_for_ids(id_list: list[str]) -> list[str]:
+    if not id_list:
+        return []
+    placeholders = ",".join("?" * len(id_list))
+    with _connect() as conn:
+        rows = conn.execute(
+            f"SELECT job_id FROM rejected_notifications WHERE job_id IN ({placeholders})",
+            id_list,
+        ).fetchall()
+        return [row["job_id"] for row in rows]
+
+
+def clear_rejections(job_ids: list[str]) -> None:
+    if not job_ids:
+        return
+    placeholders = ",".join("?" * len(job_ids))
+    with _connect() as conn:
+        conn.execute(
+            f"DELETE FROM rejected_notifications WHERE job_id IN ({placeholders})",
+            job_ids,
         )
         conn.commit()
 

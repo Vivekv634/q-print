@@ -96,8 +96,16 @@ async def get_queue() -> list[dict[str, Any]]:
 
 
 @app.post("/jobs/batch")
-async def get_jobs_by_ids(body: IdListRequest) -> list[dict[str, Any]]:
-    return await asyncio.to_thread(db.get_jobs_by_ids, body.id_list)
+async def get_jobs_by_ids(body: IdListRequest) -> dict[str, Any]:
+    jobs = await asyncio.to_thread(db.get_jobs_by_ids, body.id_list)
+    found_ids = {j["_id"] for j in jobs}
+    missing_ids = [jid for jid in body.id_list if jid not in found_ids]
+    rejected_ids: list[str] = []
+    if missing_ids:
+        rejected_ids = await asyncio.to_thread(db.get_rejections_for_ids, missing_ids)
+        if rejected_ids:
+            await asyncio.to_thread(db.clear_rejections, rejected_ids)
+    return {"jobs": jobs, "rejected_ids": rejected_ids}
 
 
 @app.get("/health")

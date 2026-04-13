@@ -109,6 +109,8 @@ class QueueManager:
                     date=now.strftime("%Y-%m-%d"),
                 )
                 db.delete_job_files(job)
+            if event_type == "dropped":
+                db.insert_rejection(user_id)
             db.delete_job(user_id)
             db.reassign_positions()
             self._mirror_queue()

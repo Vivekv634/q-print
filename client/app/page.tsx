@@ -10,11 +10,7 @@ import ShopCard from "@/components/custom/ShopCard";
 import { ShopStatus } from "@/app/api/campus/shops/route";
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import {
-  emptyActivityFileStore,
-  emptyActivityUserData,
-} from "@/db/activity.db";
-import { emptyDBUserData, emptyFileSet, emptyFileStore } from "@/db/files.db";
+import ClearDataDialog from "@/components/custom/ClearDataDialog";
 
 // ── Loading skeleton — ticket stub shape ───────────────────────────────────
 function CardSkeleton({ featured = false }: { featured?: boolean }) {
@@ -100,15 +96,6 @@ export default function CampusPage() {
     return () => clearInterval(interval);
   }, [fetchShops]);
 
-  function clearAll() {
-    if (!window.confirm("Clear all local data? This cannot be undone.")) return;
-    emptyActivityFileStore();
-    emptyActivityUserData();
-    emptyDBUserData();
-    emptyFileStore();
-    emptyFileSet();
-  }
-
   const ownShop = shops.find((s) => s.is_self) ?? null;
   const otherShops = shops
     .filter((s) => !s.is_self)
@@ -138,7 +125,12 @@ export default function CampusPage() {
       <section className="m-3 nb-card p-5">
         <div className="flex justify-between items-start gap-4">
           <div>
-            <p className={cn("nb-tag text-muted-foreground mb-2", jetbrains_mono.className)}>
+            <p
+              className={cn(
+                "nb-tag text-muted-foreground mb-2",
+                jetbrains_mono.className,
+              )}
+            >
               Campus Print Queue System
             </p>
             <h1
@@ -150,25 +142,17 @@ export default function CampusPage() {
               <span className="bg-primary px-1.5 inline-block">Q</span>
               {"-PRINT"}
             </h1>
-            <p className={cn("mt-3 nb-tag text-muted-foreground", jetbrains_mono.className)}>
+            <p
+              className={cn(
+                "mt-3 nb-tag text-muted-foreground",
+                jetbrains_mono.className,
+              )}
+            >
               Pick a shop · Upload · Done
             </p>
           </div>
 
           <div className="flex gap-2 shrink-0 mt-1">
-            <Link
-              href="/upload"
-              className={cn(
-                "h-10 px-3 flex items-center gap-1.5 rounded-none border-2 border-foreground",
-                "bg-primary text-primary-foreground font-black text-xs tracking-widest nb-press",
-                space_grotesk.className,
-              )}
-              style={{ boxShadow: "var(--nb-shadow-sm)" }}
-              title="Upload to this shop"
-            >
-              <UploadIcon className="h-4 w-4" />
-              UPLOAD
-            </Link>
             <Button
               className={cn(
                 "h-10 w-10 p-0 rounded-none border-2 border-foreground",
@@ -182,37 +166,52 @@ export default function CampusPage() {
             >
               <SunMoon className="h-4 w-4" />
             </Button>
-            <Button
-              className={cn(
-                "h-10 w-10 p-0 rounded-none border-2 border-foreground",
-                "bg-background text-foreground cursor-pointer nb-press",
-                "hover:bg-destructive hover:text-destructive-foreground",
-              )}
-              style={{ boxShadow: "var(--nb-shadow-sm)" }}
-              onClick={clearAll}
-              size="icon"
-              title="Clear local data"
-            >
-              <BugIcon className="h-4 w-4" />
-            </Button>
+            <ClearDataDialog
+              trigger={
+                <Button
+                  className={cn(
+                    "h-10 w-10 p-0 rounded-none border-2 border-foreground",
+                    "bg-background text-foreground cursor-pointer nb-press",
+                    "hover:bg-destructive hover:text-destructive-foreground",
+                  )}
+                  style={{ boxShadow: "var(--nb-shadow-sm)" }}
+                  size="icon"
+                  title="Clear local data"
+                >
+                  <BugIcon className="h-4 w-4" />
+                </Button>
+              }
+            />
           </div>
         </div>
       </section>
 
       {/* ── Campus board ────────────────────────────────────────────── */}
       <section className="m-3 nb-card p-5">
-
         {/* Status bar */}
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-2">
             <LiveDot />
-            <span className={cn("text-[11px] font-bold tracking-[0.15em] text-muted-foreground", jetbrains_mono.className)}>
-              LIVE · {loading ? "SCANNING…" : `${shops.length} SHOP${shops.length !== 1 ? "S" : ""} ON CAMPUS`}
+            <span
+              className={cn(
+                "text-[11px] font-bold tracking-[0.15em] text-muted-foreground",
+                jetbrains_mono.className,
+              )}
+            >
+              LIVE ·{" "}
+              {loading
+                ? "SCANNING…"
+                : `${shops.length} SHOP${shops.length !== 1 ? "S" : ""} ON CAMPUS`}
             </span>
           </div>
           <div className="flex items-center gap-2">
             {lastUpdated && (
-              <span className={cn("text-[10px] text-muted-foreground hidden sm:block", jetbrains_mono.className)}>
+              <span
+                className={cn(
+                  "text-[10px] text-muted-foreground hidden sm:block",
+                  jetbrains_mono.className,
+                )}
+              >
                 {lastUpdated.toLocaleTimeString()}
               </span>
             )}
@@ -235,10 +234,7 @@ export default function CampusPage() {
         {loading ? (
           <CardSkeleton featured />
         ) : ownShop ? (
-          <ShopCard
-            shop={ownShop}
-            isBestPick={bestPickHost === ownShop.host}
-          />
+          <ShopCard shop={ownShop} isBestPick={bestPickHost === ownShop.host} />
         ) : null}
 
         {/* ── Other campus shops ── */}
@@ -274,11 +270,22 @@ export default function CampusPage() {
               "border-2 border-dashed border-foreground/30 px-6 py-8 text-center",
             )}
           >
-            <p className={cn("text-[11px] tracking-[0.2em] text-muted-foreground mb-1", jetbrains_mono.className)}>
+            <p
+              className={cn(
+                "text-[11px] tracking-[0.2em] text-muted-foreground mb-1",
+                jetbrains_mono.className,
+              )}
+            >
               SCANNING NETWORK
             </p>
-            <p className={cn("text-sm text-muted-foreground", jetbrains_mono.className)}>
-              Other Q-Print shops will appear here automatically when they come online.
+            <p
+              className={cn(
+                "text-sm text-muted-foreground",
+                jetbrains_mono.className,
+              )}
+            >
+              Other Q-Print shops will appear here automatically when they come
+              online.
             </p>
           </div>
         )}

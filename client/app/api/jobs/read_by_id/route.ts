@@ -26,13 +26,16 @@ export async function POST(request: NextRequest) {
       throw new Error(`Python API returned ${res.status}`);
     }
 
-    const raw: unknown[] = await res.json();
-    const userDataArray: UserType[] = raw
+    const raw: { jobs: unknown[]; rejected_ids: string[] } = await res.json();
+    const userDataArray: UserType[] = (raw.jobs ?? [])
       .map((item) => userSchema.safeParse(item))
       .filter((r) => r.success)
       .map((r) => (r as { success: true; data: UserType }).data);
 
-    return NextResponse.json({ data: userDataArray });
+    return NextResponse.json({
+      data: userDataArray,
+      rejected_ids: raw.rejected_ids ?? [],
+    });
   } catch (err) {
     console.error("Error reading jobs:", err);
     return NextResponse.json({ error: "Failed to read data" }, { status: 500 });

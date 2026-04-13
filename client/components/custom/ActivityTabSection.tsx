@@ -3,11 +3,10 @@
 import {
   activityDatabase,
   CustomFileAcitvityObject,
-  getAllActivityUserData,
   getAllData,
   UserAcitvityObject,
 } from "@/db/activity.db";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import UserAcitvity from "./UserActivity";
 import { Button } from "../ui/button";
 import { RefreshCcwIcon } from "lucide-react";
@@ -16,33 +15,78 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { space_grotesk } from "@/fonts";
 
+async function purgeRejectedFromDB(rejectedIds: string[]): Promise<void> {
+  if (rejectedIds.length === 0) return;
+  const db = await activityDatabase();
+  for (const id of rejectedIds) {
+    await db.delete("ACTIVITY USER STORE", id);
+    await db.delete("ACTIVITY FILES STORE", id);
+  }
+}
+
+function showRejectionToasts(rejectedIds: string[]): void {
+  rejectedIds.forEach((id) => {
+    toast.error("Your print job was rejected by the shop owner.", {
+      id: `rejected-${id}`,
+      duration: 8000,
+      description: `Job ID: ${id}`,
+    });
+  });
+}
+
+const POLL_INTERVAL_MS = 15_000;
+
 export default function ActivityTabSection() {
   const [files, setFiles] = useState<CustomFileAcitvityObject | null>();
   const [userData, setUserData] = useState<UserAcitvityObject | null>();
+  const userDataRef = useRef<UserAcitvityObject | null | undefined>(userData);
+  userDataRef.current = userData;
 
-  useEffect(() => {
-    activityDatabase();
-    getAllData().then((res) => {
-      if (res) {
-        setFiles(res.fileObject);
-        setUserData(res.userObject);
-      }
-    });
-    if (userData) {
-      fetchFreshData(Object.keys(userData));
-      getAllActivityUserData();
+  const loadFromDB = useCallback(async () => {
+    const res = await getAllData();
+    if (res) {
+      setFiles(res.fileObject);
+      setUserData(res.userObject);
     }
   }, []);
 
+  // Mount: init DB then load once
+  useEffect(() => {
+    activityDatabase();
+    loadFromDB();
+  }, [loadFromDB]);
+
+  // Auto-poll: sync with server every 15 s, re-read DB into state after each sync
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      const current = userDataRef.current;
+      if (!current) return;
+      const ids = Object.keys(current);
+      if (ids.length === 0) return;
+      const result = await fetchFreshData(ids);
+      if (result.rejectedIds.length > 0) {
+        showRejectionToasts(result.rejectedIds);
+        await purgeRejectedFromDB(result.rejectedIds);
+      }
+      await loadFromDB();
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [loadFromDB]);
+
   async function refreshButtonHandler() {
     if (!userData) return;
-    const freshUserDataArrayLength = await fetchFreshData(Object.keys(userData));
-    if (freshUserDataArrayLength == 0) {
+    const result = await fetchFreshData(Object.keys(userData));
+    if (result.rejectedIds.length > 0) {
+      showRejectionToasts(result.rejectedIds);
+      await purgeRejectedFromDB(result.rejectedIds);
+    }
+    if (result.count === 0 && result.rejectedIds.length === 0) {
       toast.error("User data not found in the server. Try uploading again!");
       setTimeout(() => {
         window.location.reload();
       }, 3000);
     }
+    await loadFromDB();
   }
 
   if (!userData || !files) {
