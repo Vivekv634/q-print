@@ -1,10 +1,11 @@
 import logging
+from typing import Any
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QListWidget, QListWidgetItem,
     QPushButton, QHBoxLayout, QFrame,
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer, QThread, Signal, QObject
 from PySide6.QtGui import QColor
 
 from server.src.printer_manager import PrinterManager
@@ -21,6 +22,25 @@ STATUS_COLORS: dict[str, str] = {
 }
 
 
+class _PrinterWorker(QObject):
+    """Fetches printer list + statuses off the main thread."""
+    finished = Signal(list)  # list[dict[str, Any]]
+
+    def __init__(self, printer_manager: PrinterManager) -> None:
+        super().__init__()
+        self._pm = printer_manager
+
+    def run(self) -> None:
+        results: list[dict[str, Any]] = []
+        try:
+            for name in self._pm.get_printers():
+                info = self._pm.get_printer_status(name)
+                results.append(info)
+        except Exception as exc:
+            logger.error("PrinterWorker error: %s", exc)
+        self.finished.emit(results)
+
+
 class PrinterPanel(QWidget):
     def __init__(
         self,
@@ -29,6 +49,7 @@ class PrinterPanel(QWidget):
     ) -> None:
         super().__init__(parent)
         self.printer_manager: PrinterManager = printer_manager
+        self._fetch_thread: QThread | None = None
         self._build_ui()
         self._start_polling()
 
@@ -70,16 +91,38 @@ class PrinterPanel(QWidget):
         self.refresh()
 
     def refresh(self) -> None:
+        # Avoid stacking fetches if a previous one is still running
+        if self._fetch_thread is not None and self._fetch_thread.isRunning():
+            return
+
+        self.status_label.setText("Refreshing…")
+        thread = QThread(self)
+        worker = _PrinterWorker(self.printer_manager)
+        worker.moveToThread(thread)
+
+        thread.started.connect(worker.run)
+        worker.finished.connect(self._on_printer_data)
+        worker.finished.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+
+        self._fetch_thread = thread
+        thread.start()
+
+    def _on_printer_data(self, results: list[dict[str, Any]]) -> None:
+        # Keep the shared cache up-to-date so QuickPrintMenu can read it without I/O.
+        self.printer_manager.update_status_cache(results)
+
         self.printer_list.clear()
-        printers: list[str] = self.printer_manager.get_printers()
-        if not printers:
+        if not results:
             item: QListWidgetItem = QListWidgetItem("No printers detected")
             item.setForeground(QColor("#95a5a6"))
             self.printer_list.addItem(item)
+            self.status_label.setText("Auto-refreshing every 10s")
             return
 
-        for name in printers:
-            info: dict = self.printer_manager.get_printer_status(name)
+        for info in results:
+            name: str = info.get("name", "Unknown")
             status: str = info.get("status", "Unknown")
             jobs: int = info.get("jobs", 0)
             text: str = f"{name}  —  {status}  ({jobs} job(s) in queue)"
@@ -87,3 +130,4 @@ class PrinterPanel(QWidget):
             color: str = STATUS_COLORS.get(status, "#555555")
             item.setForeground(QColor(color))
             self.printer_list.addItem(item)
+        self.status_label.setText("Auto-refreshing every 10s")
