@@ -7,13 +7,13 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QTableWidget, QTableWidgetItem, QFrame, QHeaderView, QAbstractItemView,
 )
-from PySide6.QtCore import Qt, Signal, QFileSystemWatcher, QModelIndex
+from PySide6.QtCore import Qt, Signal, QFileSystemWatcher, QModelIndex, QTimer
 
 from server.src.queue_manager import QueueManager
 from server.src.printer_manager import PrinterManager
-from server.ui import keybindings
-
 logger = logging.getLogger(__name__)
+
+_POLL_INTERVAL_MS: int = 30_000  # 30 s fallback refresh
 
 
 class QueuePanel(QWidget):
@@ -36,6 +36,7 @@ class QueuePanel(QWidget):
         self._queue_data: list[dict[str, Any]] = []
         self._build_ui()
         self._watch_files(queue_file_path, cost_file_path)
+        self._start_poll_timer()
         self.refresh()
 
     def _build_ui(self) -> None:
@@ -48,12 +49,6 @@ class QueuePanel(QWidget):
         title: QLabel = QLabel("Print Queue")
         title.setStyleSheet("font-size: 14px; font-weight: bold;")
         header_row.addWidget(title)
-
-        refresh_btn: QPushButton = QPushButton("↺ Refresh")
-        refresh_btn.setFixedWidth(90)
-        refresh_btn.setShortcut(keybindings.REFRESH_QUEUE)
-        refresh_btn.clicked.connect(self.refresh)
-        header_row.addWidget(refresh_btn)
 
         header_row.addStretch()
 
@@ -88,6 +83,12 @@ class QueuePanel(QWidget):
     def _watch_files(self, queue_path: str, cost_path: str) -> None:
         self._watcher: QFileSystemWatcher = QFileSystemWatcher([queue_path, cost_path], self)
         self._watcher.fileChanged.connect(self._on_file_changed)
+
+    def _start_poll_timer(self) -> None:
+        self._poll_timer: QTimer = QTimer(self)
+        self._poll_timer.setInterval(_POLL_INTERVAL_MS)
+        self._poll_timer.timeout.connect(self.refresh)
+        self._poll_timer.start()
 
     def _on_file_changed(self, path: str) -> None:
         self._watcher.addPath(path)

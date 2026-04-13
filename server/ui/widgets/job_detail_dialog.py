@@ -8,11 +8,25 @@ from PySide6.QtWidgets import (
     QPushButton, QComboBox, QTableWidget, QTableWidgetItem,
     QFrame, QWidget, QMessageBox, QHeaderView,
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal, QObject
 from PySide6.QtGui import QColor
 
 from server.src.queue_manager import QueueManager
 from server.src.printer_manager import PrinterManager
+
+
+class _PrinterListWorker(QObject):
+    finished = Signal(list)
+
+    def __init__(self, pm: PrinterManager) -> None:
+        super().__init__()
+        self._pm = pm
+
+    def run(self) -> None:
+        try:
+            self.finished.emit(self._pm.get_printers())
+        except Exception:
+            self.finished.emit([])
 
 logger = logging.getLogger(__name__)
 
@@ -144,11 +158,8 @@ class JobDetailDialog(QDialog):
         action_row.addWidget(printer_label)
 
         self.printer_combo: QComboBox = QComboBox()
-        printers: list[str] = self.printer_manager.get_printers()
-        if printers:
-            self.printer_combo.addItems(printers)
-        else:
-            self.printer_combo.addItem("No printers found")
+        self.printer_combo.addItem("Loading printers…")
+        self.printer_combo.setEnabled(False)
         self.printer_combo.setMinimumWidth(220)
         action_row.addWidget(self.printer_combo)
 
@@ -160,9 +171,11 @@ class JobDetailDialog(QDialog):
             "padding: 6px 18px; border-radius: 5px;"
         )
         self.print_btn.clicked.connect(self._handle_print)
-        if not printers:
-            self.print_btn.setEnabled(False)
+        self.print_btn.setEnabled(False)  # enabled once printers load
         action_row.addWidget(self.print_btn)
+
+        # Fetch printers in background — never block the main thread
+        self._load_printers_async()
 
         cancel_btn: QPushButton = QPushButton("Cancel Job")
         cancel_btn.setStyleSheet(
@@ -177,6 +190,26 @@ class JobDetailDialog(QDialog):
         action_row.addWidget(close_btn)
 
         main_layout.addLayout(action_row)
+
+    def _load_printers_async(self) -> None:
+        thread = QThread(self)
+        worker = _PrinterListWorker(self.printer_manager)
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.finished.connect(self._on_printers_loaded)
+        worker.finished.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        thread.start()
+
+    def _on_printers_loaded(self, printers: list[str]) -> None:
+        self.printer_combo.clear()
+        if printers:
+            self.printer_combo.addItems(printers)
+            self.printer_combo.setEnabled(True)
+            self.print_btn.setEnabled(True)
+        else:
+            self.printer_combo.addItem("No printers found")
 
     def _handle_print(self) -> None:
         printer: str = self.printer_combo.currentText()
