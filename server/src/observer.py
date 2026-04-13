@@ -2,6 +2,7 @@ import os
 import json
 import time
 import logging
+import threading
 from pathlib import Path
 
 from watchdog.observers import Observer
@@ -26,6 +27,9 @@ class Handler(FileSystemEventHandler):
         self.path: str = path
         self.queue_manager: QueueManager = queue_manager
         self._previous_records: dict[str, dict] = {}
+        # Watchdog can fire on_modified from multiple threads concurrently;
+        # this lock serializes diff-and-update to prevent double-processing.
+        self._records_lock = threading.Lock()
         self._load_initial_state()
 
     def _load_initial_state(self) -> None:
@@ -49,24 +53,25 @@ class Handler(FileSystemEventHandler):
         return super().on_modified(event)
 
     def _handle_user_records_change(self) -> None:
-        try:
-            with open(USER_RECORD_FILE_PATH, "r") as f:
-                content: str = f.read().strip()
-                current_records: dict[str, dict] = json.loads(content) if content else {}
-        except (json.JSONDecodeError, FileNotFoundError):
-            return
+        with self._records_lock:
+            try:
+                with open(USER_RECORD_FILE_PATH, "r") as f:
+                    content: str = f.read().strip()
+                    current_records: dict[str, dict] = json.loads(content) if content else {}
+            except (json.JSONDecodeError, FileNotFoundError):
+                return
 
-        for user_id, user_data in current_records.items():
-            if user_id not in self._previous_records:
-                logger.info(f"New record detected: {user_id}")
-                self.queue_manager.add_job(user_data)
+            for user_id, user_data in current_records.items():
+                if user_id not in self._previous_records:
+                    logger.info(f"New record detected: {user_id}")
+                    self.queue_manager.add_job(user_data)
 
-        for user_id in list(self._previous_records.keys()):
-            if user_id not in current_records:
-                logger.info(f"Record removed: {user_id}")
-                self.queue_manager.remove_job(user_id)
+            for user_id in list(self._previous_records.keys()):
+                if user_id not in current_records:
+                    logger.info(f"Record removed: {user_id}")
+                    self.queue_manager.remove_job(user_id)
 
-        self._previous_records = current_records
+            self._previous_records = current_records
 
     def on_deleted(self, event: DirDeletedEvent | FileDeletedEvent) -> None:
         logger.debug(f"on_deleted: {event}")
