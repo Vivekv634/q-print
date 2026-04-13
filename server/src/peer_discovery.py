@@ -43,6 +43,10 @@ class PeerDiscovery:
         self._zc = zeroconf
         self._peers: dict[str, dict] = {}
         self._lock = threading.Lock()
+        self._prune_timer: threading.Timer | None = None
+        # Always start with a clean slate — stale data from a previous run
+        # should never pre-populate the UI.
+        self._write_peers()
         self._browser = ServiceBrowser(
             self._zc, QPRINT_SERVICE_TYPE, handlers=[self._on_change]
         )
@@ -53,6 +57,34 @@ class PeerDiscovery:
         """Update the filter that prevents advertising self as a peer."""
         self._own_server = f"{new_hostname}.local."
         logger.info("PeerDiscovery own_server updated to %s", self._own_server)
+
+    def force_refresh(self) -> None:
+        """Clear all discovered peers and restart mDNS browsing from scratch.
+
+        Cancels the current ServiceBrowser and creates a fresh one, which
+        immediately sends DNS-SD queries to the network. The file is emptied
+        first so callers can show a "scanning" state until responses arrive.
+        """
+        # Stop the prune timer so it doesn't race with the clear below.
+        if self._prune_timer is not None:
+            self._prune_timer.cancel()
+            self._prune_timer = None
+
+        # Cancel the running browser.
+        self._browser.cancel()
+
+        # Wipe all in-memory peer state and flush the file to [].
+        with self._lock:
+            self._peers.clear()
+        self._write_peers()
+
+        # Recreate the browser — this immediately fires DNS-SD queries on the
+        # network and will call _on_change as peers respond.
+        self._browser = ServiceBrowser(
+            self._zc, QPRINT_SERVICE_TYPE, handlers=[self._on_change]
+        )
+        self._schedule_prune()
+        logger.info("PeerDiscovery: forced refresh — cleared peers, re-browsing")
 
     # ── mDNS callbacks ─────────────────────────────────────────────────────────
 
@@ -105,7 +137,7 @@ class PeerDiscovery:
 
     def _schedule_prune(self) -> None:
         self._prune_timer = threading.Timer(PEER_PRUNE_INTERVAL_SECONDS, self._prune_stale)
-        self._prune_timer.daemon = True
+        self._prune_timer.daemon = True  # type: ignore[attr-defined]
         self._prune_timer.start()
 
     def _prune_stale(self) -> None:

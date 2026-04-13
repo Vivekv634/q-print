@@ -127,6 +127,21 @@ def install_python_deps() -> None:
         _fail(f"pip install failed: {e}")
 
 
+def install_pywin32() -> None:
+    """Install pywin32 on Windows — required for physical printing via win32print."""
+    if not IS_WIN:
+        return
+    _info("Installing pywin32 (Windows printing support) …")
+    try:
+        subprocess.run(
+            [str(_pip()), "install", "pywin32", "-q"],
+            check=True,
+        )
+        _ok("pywin32 installed")
+    except subprocess.CalledProcessError as e:
+        _warn(f"pywin32 install failed: {e}\n     Printing will be unavailable until it is installed manually.")
+
+
 # ── Node.js dependencies ───────────────────────────────────────────────────
 
 def install_node_deps() -> None:
@@ -186,6 +201,7 @@ def main() -> None:
     _header("2 · Python environment")
     setup_venv()
     install_python_deps()
+    install_pywin32()
 
     _header("3 · Node.js environment")
     install_node_deps()

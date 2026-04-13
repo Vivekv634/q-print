@@ -2,11 +2,15 @@
 """Nearby Shops dialog — real-time edition.
 
 Updates are driven by three mechanisms, in order of latency:
-  1. QFileSystemWatcher on discovered_peers.json (instant when mDNS fires)
-  2. QTimer every 5 s as a fallback (handles missed file events)
-  3. Background HTTP probe thread — overrides mDNS status with live reachability
+  1. PeerDiscovery.force_refresh() — clears stale state and fires fresh mDNS
+     queries; responses arrive within 1–3 s and update discovered_peers.json.
+  2. QFileSystemWatcher on discovered_peers.json (instant when mDNS fires)
+  3. QTimer every 5 s as a fallback (handles missed file events)
+  4. Background HTTP probe thread — overrides mDNS status with live reachability
      so the UI reflects actual shop availability within ~2 s of a status change.
 """
+
+from __future__ import annotations
 
 import json
 import logging
@@ -14,7 +18,7 @@ import threading
 import time
 import urllib.request
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import Qt, QFileSystemWatcher, QTimer, Signal
 from PySide6.QtWidgets import (
@@ -28,6 +32,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+if TYPE_CHECKING:
+    from server.src.peer_discovery import PeerDiscovery
+
 logger = logging.getLogger(__name__)
 
 _PROBE_TIMEOUT_S: float = 2.0   # per-peer HTTP timeout
@@ -38,9 +45,15 @@ class NearbyShopsDialog(QDialog):
     # Emitted from the probe thread; carries list of {host, online} dicts
     _probe_done = Signal(list)
 
-    def __init__(self, peers_file_path: str, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        peers_file_path: str,
+        peer_discovery: "PeerDiscovery | None" = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self._peers_file_path = peers_file_path
+        self._peer_discovery = peer_discovery
         self._peers: list[dict[str, Any]] = []
         # Guards the probe thread: set in closeEvent so the thread doesn't
         # emit on an already-destroyed C++ Qt object (crash prevention).
@@ -49,7 +62,8 @@ class NearbyShopsDialog(QDialog):
         self.setMinimumSize(520, 420)
         self._build_ui()
         self._setup_watchers()
-        self._load_peers()
+        # Trigger a live mDNS scan rather than reading potentially stale data.
+        self._trigger_refresh()
 
     # ── UI skeleton ────────────────────────────────────────────────────────────
 
@@ -70,7 +84,7 @@ class NearbyShopsDialog(QDialog):
         header_row.addWidget(self._probe_label)
 
         refresh_btn = QPushButton("↺ Refresh")
-        refresh_btn.clicked.connect(self._load_peers)
+        refresh_btn.clicked.connect(self._trigger_refresh)
         header_row.addWidget(refresh_btn)
         layout.addLayout(header_row)
 
@@ -112,6 +126,27 @@ class NearbyShopsDialog(QDialog):
         self._file_watcher.addPath(path)
         self._load_peers()
 
+    # ── Refresh trigger ────────────────────────────────────────────────────────
+
+    def _trigger_refresh(self) -> None:
+        """Ask PeerDiscovery for a fresh network scan, then show scanning state.
+
+        If no PeerDiscovery instance was provided, falls back to reading the
+        current file content immediately.
+        """
+        if self._peer_discovery is not None:
+            # Clear the display and signal that we're scanning.
+            self._peers = []
+            self._render_peers([])
+            self._probe_label.setText("📡 Scanning network…")
+            self._probe_label.setVisible(True)
+            # force_refresh() clears in-memory peers, writes [] to the file,
+            # and restarts the ServiceBrowser so mDNS queries go out now.
+            # The QFileSystemWatcher will call _load_peers() as peers respond.
+            self._peer_discovery.force_refresh()
+        else:
+            self._load_peers()
+
     # ── Data loading ───────────────────────────────────────────────────────────
 
     def _load_peers(self) -> None:
@@ -127,9 +162,15 @@ class NearbyShopsDialog(QDialog):
 
         # Kick off a background HTTP probe for live reachability
         if data:
+            self._probe_label.setText("🔍 Probing…")
             self._probe_label.setVisible(True)
             t = threading.Thread(target=self._probe_peers_thread, args=(list(data),), daemon=True)
             t.start()
+        else:
+            # No peers yet — keep showing the scan label if a refresh is in
+            # progress, otherwise hide it.
+            if self._probe_label.text() != "📡 Scanning network…":
+                self._probe_label.setVisible(False)
 
     def _render_peers(self, data: list[dict[str, Any]]) -> None:
         now = time.time()

@@ -158,7 +158,11 @@ class AdminWindow(QMainWindow):
 
     def _open_nearby_shops(self) -> None:
         from server.ui.widgets.nearby_shops_dialog import NearbyShopsDialog
-        dialog = NearbyShopsDialog(peers_file_path=DISCOVERED_PEERS_PATH, parent=self)
+        dialog = NearbyShopsDialog(
+            peers_file_path=DISCOVERED_PEERS_PATH,
+            peer_discovery=self._peer_discovery,
+            parent=self,
+        )
         dialog.exec()
 
     def _open_job_detail(self, job: dict) -> None:
