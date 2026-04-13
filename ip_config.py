@@ -51,13 +51,8 @@ def get_local_ip() -> str:
     return "127.0.0.1"
 
 
-def register_mdns(shop_config: dict) -> tuple[Zeroconf, str]:
-    local_ip = get_local_ip()
-    hostname: str = shop_config["mdns_hostname"]
-    shop_name: str = shop_config["shop_name"]
-
-    zc = Zeroconf()
-    info = ServiceInfo(
+def _build_service_info(hostname: str, shop_name: str, local_ip: str) -> ServiceInfo:
+    return ServiceInfo(
         QPRINT_SERVICE_TYPE,
         f"{hostname}.{QPRINT_SERVICE_TYPE}",
         addresses=[socket.inet_aton(local_ip)],
@@ -68,8 +63,35 @@ def register_mdns(shop_config: dict) -> tuple[Zeroconf, str]:
             b"path": b"/",
         },
     )
+
+
+def register_mdns(shop_config: dict) -> tuple[Zeroconf, str, ServiceInfo]:
+    local_ip = get_local_ip()
+    hostname: str = shop_config["mdns_hostname"]
+    shop_name: str = shop_config["shop_name"]
+
+    zc = Zeroconf()
+    info = _build_service_info(hostname, shop_name, local_ip)
     zc.register_service(info)
     logger.info(
         f"mDNS registered: {hostname}.local → {local_ip}:{PORT} ('{shop_name}')"
     )
-    return zc, hostname
+    return zc, hostname, info
+
+
+def reregister_mdns(zc: Zeroconf, old_info: ServiceInfo, new_config: dict) -> tuple[ServiceInfo, str]:
+    """Unregister old service, register with new hostname/name. Returns (new_info, new_hostname)."""
+    try:
+        zc.unregister_service(old_info)
+    except Exception as exc:
+        logger.warning(f"Failed to unregister old mDNS service: {exc}")
+
+    local_ip = get_local_ip()
+    new_hostname: str = new_config["mdns_hostname"]
+    new_name: str = new_config["shop_name"]
+    new_info = _build_service_info(new_hostname, new_name, local_ip)
+    zc.register_service(new_info)
+    logger.info(
+        f"mDNS re-registered: {new_hostname}.local → {local_ip}:{PORT} ('{new_name}')"
+    )
+    return new_info, new_hostname

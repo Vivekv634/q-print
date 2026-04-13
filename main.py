@@ -80,8 +80,8 @@ if __name__ == "__main__":
             sys.exit(0)
         shop_config = load_shop_config()
 
-    zeroconf, own_hostname = register_mdns(shop_config)
-    PeerDiscovery(own_hostname, DISCOVERED_PEERS_PATH, zeroconf)
+    zeroconf, own_hostname, service_info = register_mdns(shop_config)
+    peer_discovery = PeerDiscovery(own_hostname, DISCOVERED_PEERS_PATH, zeroconf)
 
     queue_manager = QueueManager(
         queue_file_path=PRINT_QUEUE_FILE_PATH,
@@ -97,7 +97,12 @@ if __name__ == "__main__":
     client_thread = Thread(target=start_web_app, daemon=True)
     client_thread.start()
 
-    window = AdminWindow(queue_manager)
+    window = AdminWindow(
+        queue_manager,
+        zeroconf=zeroconf,
+        service_info=service_info,
+        peer_discovery=peer_discovery,
+    )
     window.show()
     exit_code = app.exec()
     zeroconf.unregister_all_services()
